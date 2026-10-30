@@ -4,6 +4,10 @@
   "private": true,
   "description": "Backend foundation for the Student Internship Management System",
   "license": "UNLICENSED",
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=9.0.0"
+  },
   "scripts": {
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\"",
@@ -17,7 +21,7 @@
     "migration:run": "npm run typeorm -- migration:run",
     "migration:revert": "npm run typeorm -- migration:revert",
     "migration:generate": "npm run typeorm -- migration:generate src/database/migrations/AutoMigration",
-    "test": "jest",
+    "test": "jest --config ./jest.config.js",
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {

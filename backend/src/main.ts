@@ -16,8 +16,11 @@ async function bootstrap(): Promise<void> {
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Student Internship Management API')
-    .setDescription('Backend API foundation for managing student internships')
+    .setDescription(
+      'Backend API for student internship management. Only endpoints implemented in the current source are documented.',
+    )
     .setVersion('0.1.0')
+    .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'HMAC access token' }, 'bearer')
     .build();
   SwaggerModule.setup('api/docs', app, SwaggerModule.createDocument(app, swaggerConfig));
 
