@@ -8,11 +8,11 @@ export type AuthenticatedRequest = Request & { user: { id: string; email: string
 export class AuthGuard implements CanActivate {
   constructor(private readonly auth: AuthService) {}
 
-  canActivate(context: ExecutionContext): boolean {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
     const header = request.headers.authorization;
     if (!header?.startsWith('Bearer ')) throw new UnauthorizedException('Bearer token required');
-    request.user = this.auth.verifyAccessToken(header.slice(7));
+    request.user = await this.auth.authenticateAccessToken(header.slice(7));
     return true;
   }
 }

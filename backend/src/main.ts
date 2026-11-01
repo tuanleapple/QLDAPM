@@ -1,8 +1,9 @@
-import { ValidationPipe } from '@nestjs/common';
+import { Type, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { NestFactory } from '@nestjs/core';
+import { ModulesContainer, NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { addRoleAccessDescriptions } from './common/swagger-access';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
@@ -22,7 +23,14 @@ async function bootstrap(): Promise<void> {
     .setVersion('0.1.0')
     .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'HMAC access token' }, 'bearer')
     .build();
-  SwaggerModule.setup('api/docs', app, SwaggerModule.createDocument(app, swaggerConfig));
+  const openApiDocument = SwaggerModule.createDocument(app, swaggerConfig);
+  const controllerTypes = [...app.get(ModulesContainer).values()].flatMap((module) =>
+    [...module.controllers.values()]
+      .map((wrapper) => wrapper.metatype)
+      .filter((type): type is Type<unknown> => typeof type === 'function'),
+  );
+  addRoleAccessDescriptions(openApiDocument, controllerTypes);
+  SwaggerModule.setup('api/docs', app, openApiDocument);
 
   await app.listen(configService.get<number>('port', 3000));
 }

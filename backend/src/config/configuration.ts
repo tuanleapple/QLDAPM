@@ -12,6 +12,7 @@ import {
   ProgressUpdate,
   Report,
   Result,
+  ScoreAdjustment,
   Student,
   StatusHistory,
   Supervisor,
@@ -29,6 +30,7 @@ export default () => ({
     accessTtlSeconds: Number(process.env.AUTH_ACCESS_TTL_SECONDS ?? 900),
     refreshTtlSeconds: Number(process.env.AUTH_REFRESH_TTL_SECONDS ?? 604800),
   },
+  storage: { reportsDirectory: process.env.REPORT_STORAGE_DIR ?? 'var/private-reports' },
   database: {
     type: 'postgres' as const,
     host: process.env.DATABASE_HOST,
@@ -56,6 +58,7 @@ export default () => ({
       EvaluationForm,
       EvaluationDetail,
       Result,
+      ScoreAdjustment,
       Notification,
       SystemLog,
     ],

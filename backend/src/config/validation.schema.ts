@@ -10,6 +10,7 @@ export const validationSchema = Joi.object({
   DATABASE_USER: Joi.string().required(),
   DATABASE_PASSWORD: Joi.string().required(),
   DATABASE_SSL: Joi.boolean().truthy('true').falsy('false').default(false),
+  REPORT_STORAGE_DIR: Joi.string().min(1).default('var/private-reports'),
   // Development/test can use deterministic local-only defaults; production must provide real secrets.
   AUTH_ACCESS_SECRET: Joi.when('NODE_ENV', {
     is: 'production',

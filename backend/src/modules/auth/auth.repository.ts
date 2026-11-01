@@ -30,6 +30,19 @@ export class AuthUserRepository {
     return this.users.findOne({ where: { id, status: AccountStatus.ACTIVE } });
   }
 
+  findActiveByIdWithPassword(id: string) {
+    return this.users
+      .createQueryBuilder('user')
+      .addSelect('user.passwordHash')
+      .where('user.id = :id', { id })
+      .andWhere('user.status = :status', { status: AccountStatus.ACTIVE })
+      .getOne();
+  }
+
+  updatePasswordAndClearSession(id: string, passwordHash: string) {
+    return this.users.update(id, { passwordHash, refreshTokenHash: null });
+  }
+
   clearRefreshToken(id: string) {
     return this.users.update(id, { refreshTokenHash: null });
   }

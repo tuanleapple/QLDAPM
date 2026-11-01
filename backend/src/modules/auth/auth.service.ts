@@ -9,7 +9,7 @@ import {
   timingSafeEqual,
 } from 'node:crypto';
 import { promisify } from 'node:util';
-import { User } from '../../database/entities.entity';
+import { User, UserRole } from '../../database/entities.entity';
 import { AuthenticatedUser, TokenPayload } from './auth.types';
 import { AuthUserRepository } from './auth.repository';
 
@@ -55,6 +55,25 @@ export class AuthService {
     return { id: user.id, email: user.email, role: user.role };
   }
 
+  async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    const user = await this.users.findActiveByIdWithPassword(userId);
+    if (!user || !(await this.verifyPassword(currentPassword, user.passwordHash))) {
+      throw new UnauthorizedException('Current password is incorrect');
+    }
+    const passwordHash = await this.hashPassword(newPassword);
+    await this.users.updatePasswordAndClearSession(userId, passwordHash);
+    return { success: true };
+  }
+
+  async authenticateAccessToken(token: string): Promise<AuthenticatedUser> {
+    const identity = this.verifyAccessToken(token);
+    const user = await this.users.findActiveById(identity.id);
+    if (!user || user.email !== identity.email || user.role !== identity.role) {
+      throw new UnauthorizedException('Account unavailable');
+    }
+    return identity;
+  }
+
   verifyAccessToken(token: string): AuthenticatedUser {
     const payload = this.verifyToken(token, 'access');
     return { id: payload.id, email: payload.email, role: payload.role };
@@ -98,9 +117,23 @@ export class AuthService {
       !timingSafeEqual(Buffer.from(signature), Buffer.from(expected))
     )
       throw new UnauthorizedException('Invalid token');
-    const payload = JSON.parse(Buffer.from(encoded, 'base64url').toString()) as TokenPayload;
-    if (payload.type !== type || payload.exp <= Math.floor(Date.now() / 1000))
+    let payload: TokenPayload;
+    try {
+      payload = JSON.parse(Buffer.from(encoded, 'base64url').toString()) as TokenPayload;
+    } catch {
+      throw new UnauthorizedException('Invalid token');
+    }
+    if (
+      !payload.id ||
+      !payload.email ||
+      !Object.values(UserRole).includes(payload.role) ||
+      payload.type !== type
+    ) {
+      throw new UnauthorizedException('Invalid token');
+    }
+    if (!Number.isFinite(payload.exp) || payload.exp <= Math.floor(Date.now() / 1000)) {
       throw new UnauthorizedException('Expired token');
+    }
     return payload;
   }
 
@@ -127,7 +160,7 @@ export class AuthService {
     return `${salt.toString('hex')}:${derived.toString('hex')}`;
   }
 
-  private async verifyPassword(password: string, encoded: string): Promise<boolean> {
+  async verifyPassword(password: string, encoded: string): Promise<boolean> {
     const [saltHex, hashHex] = encoded.split(':');
     if (!saltHex || !hashHex) return false;
     const derived = (await scrypt(password, Buffer.from(saltHex, 'hex'), 64)) as Buffer;

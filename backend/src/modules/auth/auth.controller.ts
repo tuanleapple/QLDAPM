@@ -1,31 +1,17 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Post, Req, UseGuards } from '@nestjs/common';
-import {
-  ApiBearerAuth,
-  ApiBody,
-  ApiOperation,
-  ApiProperty,
-  ApiResponse,
-  ApiTags,
-} from '@nestjs/swagger';
-import { IsEmail, IsString, MinLength } from 'class-validator';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+
 import { AuthenticatedRequest, AuthGuard } from './auth.guard';
 import { AuthService } from './auth.service';
 
-export class LoginDto {
-  @ApiProperty({ example: 'student@example.test', format: 'email' })
-  @IsEmail()
-  email!: string;
-
-  @ApiProperty({ example: 'not-a-real-password', minLength: 8, format: 'password' })
-  @IsString()
-  @MinLength(8)
-  password!: string;
-}
-export class RefreshDto {
-  @ApiProperty({ example: 'example.refresh.token' })
-  @IsString()
-  refreshToken!: string;
-}
+import {
+  LoginDto,
+  RefreshDto,
+  ChangePasswordDto,
+  AuthUserResponseDto,
+  AuthTokenResponseDto,
+  SuccessResponseDto,
+} from './auth.dto';
 
 @Controller('auth')
 @ApiTags('auth')
@@ -42,6 +28,7 @@ export class AuthController {
   @ApiResponse({
     status: 200,
     description: 'Access and refresh tokens issued',
+    type: AuthTokenResponseDto,
     schema: {
       example: {
         accessToken: 'example.access.token',
@@ -65,7 +52,7 @@ export class AuthController {
       'Rotates the refresh token and revokes the previous one. Public endpoint; the refresh token is supplied in the body.',
   })
   @ApiBody({ type: RefreshDto })
-  @ApiResponse({ status: 200, description: 'New token pair issued' })
+  @ApiResponse({ status: 200, description: 'New token pair issued', type: AuthTokenResponseDto })
   @ApiResponse({ status: 400, description: 'Missing refreshToken' })
   @ApiResponse({ status: 401, description: 'Invalid, expired, or revoked refresh token' })
   refresh(@Body() body: RefreshDto) {
@@ -82,6 +69,7 @@ export class AuthController {
   @ApiResponse({
     status: 200,
     description: 'Session revoked',
+    type: SuccessResponseDto,
     schema: { example: { success: true } },
   })
   @ApiResponse({ status: 401, description: 'Missing or invalid Bearer token' })
@@ -99,10 +87,23 @@ export class AuthController {
   @ApiResponse({
     status: 200,
     description: 'Current account',
+    type: AuthUserResponseDto,
     schema: { example: { id: 'uuid', email: 'student@example.test', role: 'STUDENT' } },
   })
   @ApiResponse({ status: 401, description: 'Missing, invalid, expired, or revoked account token' })
   me(@Req() request: AuthenticatedRequest) {
     return this.auth.me(request.user.id);
+  }
+
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth('bearer')
+  @Post('change-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Change current password and revoke refresh session' })
+  @ApiBody({ type: ChangePasswordDto })
+  @ApiResponse({ status: 200, type: SuccessResponseDto, schema: { example: { success: true } } })
+  @ApiResponse({ status: 401, description: 'Current password is incorrect' })
+  changePassword(@Req() request: AuthenticatedRequest, @Body() body: ChangePasswordDto) {
+    return this.auth.changePassword(request.user.id, body.currentPassword, body.newPassword);
   }
 }

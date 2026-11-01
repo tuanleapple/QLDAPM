@@ -7,3 +7,9 @@ coverage/
 *.log
 uploads/
 backend/uploads/
+var/private-reports/
+backend/var/private-reports/
+backend/var/api-demo-manifest.json
+backend/var/api-demo-manifest.json.*.tmp
+backend/var/api-local-results.json
+backend/var/api-local-results-*.json

@@ -5,6 +5,7 @@ import {
   Index,
   JoinColumn,
   ManyToOne,
+  OneToMany,
   OneToOne,
   PrimaryGeneratedColumn,
   PrimaryColumn,
@@ -29,11 +30,16 @@ export enum ProfileStatus {
   NEEDS_REVISION = 'NEEDS_REVISION',
   APPROVED = 'APPROVED',
   REJECTED = 'REJECTED',
+  REPORT_SUBMITTED = 'REPORT_SUBMITTED',
 }
 export enum FormType {
   ENTERPRISE = 'ENTERPRISE',
-  SUPERVISOR_PROCESS = 'SUPERVISOR_PROCESS',
-  SUPERVISOR_REPORT = 'SUPERVISOR_REPORT',
+  SUPERVISOR = 'SUPERVISOR',
+}
+export enum CriteriaCategory {
+  ENTERPRISE = 'ENTERPRISE',
+  PROCESS = 'PROCESS',
+  REPORT = 'REPORT',
 }
 export enum SubmissionStatus {
   DRAFT = 'DRAFT',
@@ -120,6 +126,24 @@ export class InternshipPeriod {
   @Column({ name: 'registration_close_at', type: 'timestamptz' }) registrationCloseAt!: Date;
   @Column({ name: 'report_deadline', type: 'timestamptz', nullable: true })
   reportDeadline!: Date | null;
+  @Column({ name: 'enterprise_weight', type: 'numeric', precision: 6, scale: 5, default: 0.4 })
+  enterpriseWeight!: string;
+  @Column({
+    name: 'supervisor_process_weight',
+    type: 'numeric',
+    precision: 6,
+    scale: 5,
+    default: 0.3,
+  })
+  supervisorProcessWeight!: string;
+  @Column({
+    name: 'supervisor_report_weight',
+    type: 'numeric',
+    precision: 6,
+    scale: 5,
+    default: 0.3,
+  })
+  supervisorReportWeight!: string;
   @Column({ default: true }) active!: boolean;
 }
 
@@ -144,6 +168,11 @@ export class InternshipProfile {
   @JoinColumn({ name: 'supervisor_id', referencedColumnName: 'userId' })
   supervisor!: Supervisor | null;
   @Column({ length: 255 }) title!: string;
+  @Column({ type: 'varchar', length: 255, nullable: true }) position!: string | null;
+  @Column({ name: 'internship_start_at', type: 'date', nullable: true }) internshipStartAt!:
+    string | null;
+  @Column({ name: 'internship_end_at', type: 'date', nullable: true }) internshipEndAt!:
+    string | null;
   @Column({ type: 'text', nullable: true }) description!: string | null;
   @Column({ type: 'enum', enum: ProfileStatus, default: ProfileStatus.DRAFT })
   status!: ProfileStatus;
@@ -176,7 +205,9 @@ export class ProgressUpdate {
   @JoinColumn({ name: 'profile_id' })
   profile!: InternshipProfile;
   @Column({ name: 'report_period', length: 100 }) reportPeriod!: string;
-  @Column({ type: 'text' }) content!: string;
+  @Column({ type: 'text', nullable: true }) work!: string | null;
+  @Column({ type: 'text', nullable: true }) outcome!: string | null;
+  @Column({ type: 'text', nullable: true }) difficulties!: string | null;
   @Column({ name: 'created_by', type: 'uuid' }) createdBy!: string;
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt!: Date;
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' }) updatedAt!: Date;
@@ -192,6 +223,7 @@ export class Comment {
   @Column({ name: 'author_id', type: 'uuid' }) authorId!: string;
   @Column({ type: 'text' }) content!: string;
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt!: Date;
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' }) updatedAt!: Date;
 }
 
 @Entity('reports')
@@ -219,7 +251,14 @@ export class Criteria {
   @ManyToOne(() => InternshipPeriod, { onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'period_id' })
   period!: InternshipPeriod;
-  @Column({ type: 'enum', enum: FormType }) formType!: FormType;
+  @Column({
+    name: 'form_type',
+    type: 'enum',
+    enum: [...Object.values(FormType), 'LEGACY_SUPERVISOR_PROCESS', 'LEGACY_SUPERVISOR_REPORT'],
+  })
+  formType!: FormType;
+  @Column({ type: 'enum', enum: CriteriaCategory, default: CriteriaCategory.ENTERPRISE })
+  category!: CriteriaCategory;
   @Column({ length: 50 }) code!: string;
   @Column({ length: 255 }) name!: string;
   @Column({ type: 'numeric', precision: 8, scale: 5 }) weight!: string;
@@ -234,11 +273,21 @@ export class EvaluationForm {
   @ManyToOne(() => InternshipProfile, { onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'profile_id' })
   profile!: InternshipProfile;
-  @Column({ name: 'form_type', type: 'enum', enum: FormType }) formType!: FormType;
+  @Column({
+    name: 'form_type',
+    type: 'enum',
+    enum: [...Object.values(FormType), 'LEGACY_SUPERVISOR_PROCESS', 'LEGACY_SUPERVISOR_REPORT'],
+  })
+  formType!: FormType;
   @Column({ name: 'evaluator_id', type: 'uuid' }) evaluatorId!: string;
   @Column({ type: 'enum', enum: SubmissionStatus, default: SubmissionStatus.DRAFT })
   status!: SubmissionStatus;
   @Column({ name: 'submitted_at', type: 'timestamptz', nullable: true }) submittedAt!: Date | null;
+  @Column({ name: 'report_id', type: 'uuid', nullable: true }) reportId!: string | null;
+  @ManyToOne(() => Report, { nullable: true, onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'report_id' })
+  report!: Report | null;
+  @OneToMany(() => EvaluationDetail, (detail) => detail.form) details!: EvaluationDetail[];
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt!: Date;
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' }) updatedAt!: Date;
 }
@@ -265,16 +314,41 @@ export class Result {
   @OneToOne(() => InternshipProfile, { onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'profile_id' })
   profile!: InternshipProfile;
-  @Column({ name: 'enterprise_score', type: 'numeric', precision: 5, scale: 2 })
+  @Column({ name: 'enterprise_score', type: 'numeric', precision: 12, scale: 8 })
   enterpriseScore!: string;
-  @Column({ name: 'supervisor_process_score', type: 'numeric', precision: 5, scale: 2 })
+  @Column({ name: 'supervisor_process_score', type: 'numeric', precision: 12, scale: 8 })
   supervisorProcessScore!: string;
-  @Column({ name: 'supervisor_report_score', type: 'numeric', precision: 5, scale: 2 })
+  @Column({ name: 'supervisor_report_score', type: 'numeric', precision: 12, scale: 8 })
   supervisorReportScore!: string;
+  @Column({
+    name: 'calculated_total_score',
+    type: 'numeric',
+    precision: 12,
+    scale: 8,
+    nullable: true,
+  })
+  calculatedTotalScore!: string | null;
+  @Column({ name: 'adjusted_total_score', type: 'numeric', precision: 5, scale: 2, nullable: true })
+  adjustedTotalScore!: string | null;
   @Column({ name: 'total_score', type: 'numeric', precision: 5, scale: 2 }) totalScore!: string;
   @Column({ name: 'is_finalized', default: false }) isFinalized!: boolean;
   @Column({ name: 'published_at', type: 'timestamptz', nullable: true }) publishedAt!: Date | null;
   @Column({ name: 'finalized_by', type: 'uuid', nullable: true }) finalizedBy!: string | null;
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt!: Date;
+  @Column({ name: 'finalized_at', type: 'timestamptz', nullable: true }) finalizedAt!: Date | null;
+}
+
+@Entity('score_adjustments')
+export class ScoreAdjustment {
+  @PrimaryGeneratedColumn('uuid') id!: string;
+  @Column({ name: 'result_id', type: 'uuid' }) resultId!: string;
+  @ManyToOne(() => Result, { onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'result_id' })
+  result!: Result;
+  @Column({ name: 'old_score', type: 'numeric', precision: 5, scale: 2 }) oldScore!: string;
+  @Column({ name: 'new_score', type: 'numeric', precision: 5, scale: 2 }) newScore!: string;
+  @Column({ type: 'text' }) reason!: string;
+  @Column({ name: 'changed_by', type: 'uuid' }) changedBy!: string;
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt!: Date;
 }
 

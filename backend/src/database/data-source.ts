@@ -9,7 +9,8 @@ export default new DataSource({
   password: process.env.DATABASE_PASSWORD,
   database: process.env.DATABASE_NAME,
   ssl: process.env.DATABASE_SSL === 'true',
-  entities: ['src/**/*.entity.ts'],
+  entities: ['src/database/entities.entity.ts'],
   migrations: ['src/database/migrations/*.ts'],
   synchronize: false,
+  migrationsRun: false,
 });
