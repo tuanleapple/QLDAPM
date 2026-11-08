@@ -1,362 +1,342 @@
-import Image from 'next/image';
+// frontend/app/student/dashboard/page.tsx
+'use client';
+
+import React, { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import {
-  HomeIcon,
-  DocumentPlusIcon,
-  ArrowUpTrayIcon,
-  ChatBubbleLeftEllipsisIcon,
-  Cog6ToothIcon,
-  MagnifyingGlassIcon,
-  BellIcon,
   CalendarIcon,
-  CheckIcon,
   BuildingOfficeIcon,
   RocketLaunchIcon,
   DocumentTextIcon,
   TrophyIcon,
-  CloudArrowUpIcon,
-  UserIcon,
-  BookOpenIcon,
-  QuestionMarkCircleIcon,
-  ChevronRightIcon,
+  ArrowRightIcon,
+  PencilSquareIcon,
+  ExclamationTriangleIcon,
+  DocumentPlusIcon,
+  UserPlusIcon as UserCheckIcon,
 } from '@heroicons/react/24/outline';
+import { AppSidebar } from '@/components/layout/AppSidebar';
+import { AppHeader } from '@/components/layout/AppHeader';
+import { Badge } from '@/components/ui/Badge';
+import { apiClient } from '@/lib/api-client';
+import { useAuth } from '@/lib/auth-context';
+import { InternshipProfile, PaginatedResponse, StudentDashboardData } from '@/types/api';
 
 export default function StudentDashboard() {
+  const { user } = useAuth();
+  const [dashboardData, setDashboardData] = useState<StudentDashboardData | null>(null);
+  const [profile, setProfile] = useState<InternshipProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchDashboard = useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await apiClient.get<StudentDashboardData>('/internships/dashboard/student');
+      setDashboardData(data);
+
+      const profilesRes = await apiClient.get<PaginatedResponse<InternshipProfile>>('/internships/profiles', {
+        page: 1,
+        limit: 5,
+      });
+      if (profilesRes.items?.length > 0) {
+        setProfile(profilesRes.items[0]);
+      }
+    } catch {
+      // Fallback
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchDashboard();
+  }, [fetchDashboard]);
+
+  const getTimelineStep = () => {
+    if (!profile) return 0;
+    switch (profile.status) {
+      case 'DRAFT':
+        return 1;
+      case 'SUBMITTED':
+      case 'NEEDS_REVISION':
+        return 2;
+      case 'APPROVED':
+        return 3;
+      case 'REPORT_SUBMITTED':
+        return 4;
+      default:
+        return 2;
+    }
+  };
+
+  const step = getTimelineStep();
+
+  const latestHistory = profile?.statusHistory?.[0];
+  const revisionReason =
+    profile?.status === 'NEEDS_REVISION'
+      ? latestHistory?.reason || 'Cán bộ yêu cầu bổ sung/sửa đổi thông tin hồ sơ.'
+      : null;
+
   return (
     <div className="flex min-h-screen bg-[#F9FAFB]">
-      {/* ================= SIDEBAR ================= */}
-      <aside className="w-64 flex-shrink-0 border-r border-gray-200 bg-white">
-        <div className="flex h-20 items-center px-8">
-          <Image
-            src="/img/sims_logo_concept_01 3.png"
-            alt="SIMS Logo"
-            width={120}
-            height={40}
-            className="h-auto w-auto"
-          />
-        </div>
-        <nav className="mt-4 flex flex-col gap-2 px-4">
-          {/* Active Menu */}
-          <Link
-            href="/dashboard"
-            className="flex items-center gap-3 rounded-lg bg-[#8093FF] px-4 py-3 text-white shadow-sm"
-          >
-            <HomeIcon className="h-6 w-6" />
-            <span className="font-medium">Bảng điều khiển</span>
-          </Link>
-
-          <Link
-            href="/student/register-intern"
-            className="flex items-center gap-3 rounded-lg px-4 py-3 text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition"
-          >
-            <DocumentPlusIcon className="h-6 w-6" />
-            <span className="font-medium">Đăng ký thực tập</span>
-          </Link>
-
-          <Link
-            href="#"
-            className="flex items-center gap-3 rounded-lg px-4 py-3 text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition"
-          >
-            <ArrowUpTrayIcon className="h-6 w-6" />
-            <span className="font-medium">Nộp báo cáo/Tiến độ</span>
-          </Link>
-
-          <Link
-            href="#"
-            className="flex items-center gap-3 rounded-lg px-4 py-3 text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition"
-          >
-            <ChatBubbleLeftEllipsisIcon className="h-6 w-6" />
-            <span className="font-medium">Kết quả đánh giá</span>
-          </Link>
-
-          <Link
-            href="#"
-            className="flex items-center gap-3 rounded-lg px-4 py-3 text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition mt-4"
-          >
-            <Cog6ToothIcon className="h-6 w-6" />
-            <span className="font-medium">Cài đặt</span>
-          </Link>
-        </nav>
-      </aside>
-
-      {/* ================= MAIN CONTENT AREA ================= */}
+      <AppSidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
-        {/* HEADER */}
-        <header className="flex h-20 items-center justify-between border-b border-gray-200 bg-white px-8">
-          <div className="relative w-96">
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Tìm kiếm"
-              className="h-10 w-full rounded-full border border-gray-300 bg-gray-50 pl-10 pr-4 text-sm focus:border-[#8093FF] focus:outline-none focus:ring-1 focus:ring-[#8093FF]"
-            />
-          </div>
+        <AppHeader />
 
-          <div className="flex items-center gap-6">
-            <button className="relative text-gray-500 hover:text-gray-700">
-              <BellIcon className="h-6 w-6" />
-              <span className="absolute right-0 top-0 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white"></span>
-            </button>
-            <div className="flex items-center gap-3 border-l pl-6">
-              {/* Avatar Placeholder */}
-              <div className="h-10 w-10 overflow-hidden rounded-full bg-gray-200">
-                <Image
-                  src="/img/Saly-2.png"
-                  alt="Avatar"
-                  width={40}
-                  height={40}
-                  className="object-cover"
-                />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-gray-900">Chí Thanh</p>
-                <p className="text-xs text-gray-500">CS - Năm 3</p>
-              </div>
-            </div>
-          </div>
-        </header>
-
-        {/* DASHBOARD CONTENT */}
-        <main className="flex-1 overflow-y-auto p-8">
+        <main className="flex-1 overflow-y-auto p-8 max-w-7xl mx-auto w-full">
           {/* Greeting */}
-          <div className="mb-6 flex items-end justify-between">
+          <div className="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">
-                Chào mừng trở lại, Nguyễn Chí Thanh 👋
+              <h1 className="text-2xl font-extrabold text-gray-900">
+                Xin chào, {user?.fullName || user?.email?.split('@')[0]} 👋
               </h1>
               <p className="mt-1 text-sm text-gray-500">
-                Dưới đây là những gì đang diễn ra với kỳ thực tập của bạn.
+                Theo dõi tiến trình đăng ký và thực tập tốt nghiệp của bạn tại đây.
               </p>
             </div>
-            <button className="flex items-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50">
-              <CalendarIcon className="h-5 w-5 text-gray-400" />
-              Kỳ thực tập 2025
-            </button>
+            {dashboardData?.activePeriod && (
+              <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-xs">
+                <CalendarIcon className="h-4 w-4 text-[#8093FF]" />
+                <span>{dashboardData.activePeriod.name}</span>
+              </div>
+            )}
           </div>
 
-          {/* Section 1: Timeline */}
-          <div className="mb-6 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-            <h2 className="mb-8 flex items-center gap-2 text-lg font-bold text-gray-900">
-              <ArrowUpTrayIcon className="h-5 w-5 text-[#8093FF]" />
-              Tiến độ thực tập
-            </h2>
-
-            <div className="relative flex justify-between px-10">
-              {/* Đường kẻ ngang (Line) */}
-              <div className="absolute left-16 right-16 top-6 h-[2px] bg-gray-200 -z-0"></div>
-              {/* Đường kẻ ngang màu xanh (Progress Line) */}
-              <div className="absolute left-16 top-6 h-[2px] w-1/2 bg-[#8093FF] -z-0"></div>
-
-              {/* Step 1 */}
-              <div className="z-10 flex flex-col items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#8093FF] text-white ring-4 ring-white">
-                  <CheckIcon className="h-6 w-6" />
-                </div>
-                <div className="text-center">
-                  <p className="text-sm font-bold text-gray-900">Đã đăng ký</p>
-                  <p className="text-xs text-gray-500">(Ngày 10 tháng 5 năm 2025)</p>
+          {/* Cảnh báo yêu cầu sửa đổi hồ sơ nếu có */}
+          {revisionReason && (
+            <div className="mb-6 flex items-start justify-between rounded-2xl bg-amber-50 p-5 border border-amber-200 shadow-xs">
+              <div className="flex items-start gap-3">
+                <ExclamationTriangleIcon className="h-6 w-6 text-amber-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <h3 className="text-base font-bold text-amber-900">Hồ sơ cần chỉnh sửa lại</h3>
+                  <p className="text-sm text-amber-800 mt-1">Lý do từ Cán bộ: &ldquo;{revisionReason}&rdquo;</p>
                 </div>
               </div>
+              <Link
+                href="/student/register-intern"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-600 text-white text-sm font-bold hover:bg-amber-700 transition flex-shrink-0 shadow-xs"
+              >
+                <PencilSquareIcon className="w-4 h-4" />
+                <span>Chỉnh sửa ngay</span>
+              </Link>
+            </div>
+          )}
 
-              {/* Step 2 */}
-              <div className="z-10 flex flex-col items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#8093FF] text-white ring-4 ring-white">
-                  <BuildingOfficeIcon className="h-6 w-6" />
-                </div>
-                <div className="text-center">
-                  <p className="text-sm font-bold text-gray-900">Đã ghép nối công ty</p>
-                  <p className="text-xs text-gray-500">(Ngày 20 tháng 5 năm 2025)</p>
-                </div>
-              </div>
+          {/* Section 1: Timeline tiến độ thực tập */}
+          <div className="mb-6 rounded-2xl border border-gray-200/70 bg-white p-6 shadow-xs">
+            <div className="flex items-center justify-between mb-8">
+              <h2 className="flex items-center gap-2 text-lg font-bold text-gray-900">
+                <RocketLaunchIcon className="h-5 w-5 text-[#8093FF]" />
+                Tiến trình thực tập
+              </h2>
+              {profile && <Badge status={profile.status} />}
+            </div>
 
-              {/* Step 3 */}
-              <div className="z-10 flex flex-col items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#F0F2FF] border border-[#8093FF] text-[#8093FF] ring-4 ring-white">
-                  <RocketLaunchIcon className="h-6 w-6" />
-                </div>
-                <div className="text-center">
-                  <p className="text-sm font-bold text-gray-900">Đang tiến hành</p>
-                  <p className="text-xs text-gray-500">
-                    (Ngày 1 tháng 6 - Ngày
-                    <br />
-                    31 tháng 8 năm 2025)
-                  </p>
-                </div>
-              </div>
+            <div className="relative flex justify-between px-6 md:px-12">
+              <div className="absolute left-12 right-12 top-6 h-[2px] bg-gray-100 -z-0"></div>
+              <div
+                className="absolute left-12 top-6 h-[2px] bg-[#8093FF] -z-0 transition-all duration-500"
+                style={{ width: `${Math.min(100, (Math.max(0, step - 1) / 3) * 100)}%` }}
+              ></div>
 
-              {/* Step 4 */}
-              <div className="z-10 flex flex-col items-center gap-3 opacity-50">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white border-2 border-gray-300 text-gray-400 ring-4 ring-white">
+              {/* Step 1: Tạo hồ sơ */}
+              <div className="z-10 flex flex-col items-center gap-2">
+                <div
+                  className={`flex h-12 w-12 items-center justify-center rounded-full ring-4 ring-white ${
+                    step >= 1 ? 'bg-[#8093FF] text-white shadow-md shadow-indigo-100' : 'bg-gray-100 text-gray-400'
+                  }`}
+                >
                   <DocumentTextIcon className="h-6 w-6" />
                 </div>
                 <div className="text-center">
-                  <p className="text-sm font-bold text-gray-900">Đánh giá</p>
-                  <p className="text-xs text-gray-500">
-                    (Ngày 1 tháng 9 - Ngày
-                    <br />
-                    15 tháng 9 năm 2025)
+                  <p className="text-xs font-bold text-gray-900">1. Đăng ký</p>
+                  <p className="text-[11px] text-gray-500">{step >= 1 ? 'Hoàn thành' : 'Chưa tạo'}</p>
+                </div>
+              </div>
+
+              {/* Step 2: Cán bộ duyệt */}
+              <div className="z-10 flex flex-col items-center gap-2">
+                <div
+                  className={`flex h-12 w-12 items-center justify-center rounded-full ring-4 ring-white ${
+                    step >= 2 ? 'bg-[#8093FF] text-white shadow-md shadow-indigo-100' : 'bg-gray-100 text-gray-400'
+                  }`}
+                >
+                  <UserCheckIcon className="h-6 w-6" />
+                </div>
+                <div className="text-center">
+                  <p className="text-xs font-bold text-gray-900">2. Xét duyệt</p>
+                  <p className="text-[11px] text-gray-500">
+                    {step > 2 ? 'Đã duyệt' : step === 2 ? 'Đang xét duyệt' : 'Chờ nộp'}
                   </p>
                 </div>
               </div>
 
-              {/* Step 5 */}
-              <div className="z-10 flex flex-col items-center gap-3 opacity-50">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white border-2 border-gray-300 text-gray-400 ring-4 ring-white">
+              {/* Step 3: Thực tập & Báo cáo tiến độ */}
+              <div className="z-10 flex flex-col items-center gap-2">
+                <div
+                  className={`flex h-12 w-12 items-center justify-center rounded-full ring-4 ring-white ${
+                    step >= 3 ? 'bg-[#8093FF] text-white shadow-md shadow-indigo-100' : 'bg-gray-100 text-gray-400'
+                  }`}
+                >
+                  <RocketLaunchIcon className="h-6 w-6" />
+                </div>
+                <div className="text-center">
+                  <p className="text-xs font-bold text-gray-900">3. Thực tập & Tiến độ</p>
+                  <p className="text-[11px] text-gray-500">{step >= 3 ? 'Đang thực hiện' : 'Chưa mở'}</p>
+                </div>
+              </div>
+
+              {/* Step 4: Đánh giá & Hoàn thành */}
+              <div className="z-10 flex flex-col items-center gap-2">
+                <div
+                  className={`flex h-12 w-12 items-center justify-center rounded-full ring-4 ring-white ${
+                    step >= 4 ? 'bg-[#8093FF] text-white shadow-md shadow-indigo-100' : 'bg-gray-100 text-gray-400'
+                  }`}
+                >
                   <TrophyIcon className="h-6 w-6" />
                 </div>
                 <div className="text-center">
-                  <p className="text-sm font-bold text-gray-900">Đã hoàn thành</p>
-                  <p className="text-xs text-gray-500">(Sắp tới)</p>
+                  <p className="text-xs font-bold text-gray-900">4. Đánh giá cuối kỳ</p>
+                  <p className="text-[11px] text-gray-500">{step >= 4 ? 'Đã nộp báo cáo' : 'Chờ hoàn tất'}</p>
                 </div>
               </div>
             </div>
-
-            <div className="mt-8 inline-flex items-center gap-2 rounded-lg bg-[#F0F2FF] px-4 py-2 text-sm font-medium text-[#8093FF]">
-              <CheckIcon className="h-5 w-5" />
-              Bạn hiện đang trong quá trình thực tập. Hãy tiếp tục phát huy nhé!
-            </div>
           </div>
 
-          {/* Section 2: Stats Grid */}
-          <div className="mb-6 grid grid-cols-4 gap-6">
-            <div className="flex items-center gap-4 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-              <div className="relative h-16 w-16">
-                <svg className="h-full w-full -rotate-90" viewBox="0 0 36 36">
-                  <path
-                    className="text-gray-100"
-                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  />
-                  <path
-                    className="text-[#8093FF]"
-                    strokeDasharray="62.5, 100"
-                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  />
-                </svg>
-              </div>
-              <div>
-                <p className="text-sm font-bold text-gray-900">Tiến độ tổng thể</p>
-                <p className="text-2xl font-bold text-[#8093FF]">62.5%</p>
-                <p className="text-[10px] text-gray-500">Tiếp tục nào! Bạn đang làm rất tốt.</p>
-              </div>
+          {/* Section 2: Thông tin chi tiết hồ sơ hiện tại */}
+          {loading ? (
+            <div className="rounded-2xl bg-white p-8 text-center border border-gray-100">
+              <div className="h-6 w-6 border-2 border-[#8093FF] border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+              <p className="text-xs text-gray-400">Đang tải dữ liệu hồ sơ...</p>
             </div>
-
-            <div className="flex flex-col justify-center rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-              <p className="flex items-center gap-2 text-sm font-bold text-gray-900">
-                <CheckIcon className="h-4 w-4 text-[#8093FF]" /> Nhiệm vụ đã hoàn thành
+          ) : !profile ? (
+            <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-12 text-center">
+              <DocumentPlusIcon className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+              <h3 className="text-lg font-bold text-gray-900 mb-1">Bạn chưa đăng ký hồ sơ thực tập</h3>
+              <p className="text-sm text-gray-500 mb-6 max-w-md mx-auto">
+                Hãy tạo hồ sơ nguyện vọng thực tập để được xét duyệt và phân công Giảng viên hướng dẫn.
               </p>
-              <p className="mt-2 text-2xl font-bold text-gray-900">
-                12/18 <span className="text-sm font-normal text-gray-500">nhiệm vụ</span>
-              </p>
-              <Link href="#" className="mt-2 text-xs font-medium text-[#8093FF] hover:underline">
-                Xem tất cả nhiệm vụ
+              <Link
+                href="/student/register-intern"
+                className="inline-flex items-center gap-2 rounded-xl bg-[#8093FF] px-6 py-3 text-sm font-bold text-white shadow-md shadow-indigo-100 hover:opacity-90 transition"
+              >
+                <DocumentPlusIcon className="w-4 h-4" />
+                Đăng ký thực tập ngay
               </Link>
             </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Thẻ thông tin hồ sơ */}
+              <div className="lg:col-span-2 rounded-2xl border border-gray-200/70 bg-white p-6 shadow-xs space-y-4">
+                <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900">{profile.position || profile.title}</h3>
+                    <p className="text-xs text-gray-500 mt-0.5">Mã hồ sơ: {profile.id}</p>
+                  </div>
+                  <Badge status={profile.status} />
+                </div>
 
-            <div className="flex flex-col justify-center rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-              <p className="flex items-center gap-2 text-sm font-bold text-gray-900">
-                <DocumentTextIcon className="h-4 w-4 text-gray-500" /> Báo cáo đã nộp
-              </p>
-              <p className="mt-2 text-2xl font-bold text-gray-900">
-                2/3 <span className="text-sm font-normal text-gray-500">yêu cầu</span>
-              </p>
-              <Link href="#" className="mt-2 text-xs font-medium text-[#8093FF] hover:underline">
-                Xem báo cáo
-              </Link>
-            </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-xs font-semibold text-gray-400 block mb-1">Đơn vị thực tập</span>
+                    <div className="flex items-center gap-2 font-bold text-gray-900">
+                      <BuildingOfficeIcon className="w-4 h-4 text-[#8093FF]" />
+                      <span>{profile.enterprise?.name || 'Chưa liên kết doanh nghiệp'}</span>
+                    </div>
+                  </div>
 
-            <div className="flex flex-col justify-center rounded-xl border border-red-100 bg-white p-5 shadow-sm">
-              <p className="flex items-center gap-2 text-sm font-bold text-red-500">
-                <CalendarIcon className="h-4 w-4" /> Hạn chót tiếp theo
-              </p>
-              <p className="mt-2 text-lg font-bold text-red-500">Ngày 15 tháng 8, 2025</p>
-              <Link href="#" className="mt-2 text-xs font-medium text-[#8093FF] hover:underline">
-                Xem chi tiết
-              </Link>
-            </div>
-          </div>
+                  <div>
+                    <span className="text-xs font-semibold text-gray-400 block mb-1">Giảng viên hướng dẫn</span>
+                    <div className="flex items-center gap-2 font-bold text-gray-900">
+                      <UserCheckIcon className="w-4 h-4 text-[#8093FF]" />
+                      <span>{profile.supervisor?.fullName || profile.supervisor?.email || 'Chờ phân công'}</span>
+                    </div>
+                  </div>
 
-          {/* Section 3: Bottom Grid */}
-          <div className="grid grid-cols-3 gap-6">
-            {/* Banner */}
-            <div className="relative col-span-2 overflow-hidden rounded-xl bg-[#E6EAFB] p-8">
-              <div className="relative z-10 w-2/3">
-                <h3 className="text-xl font-bold text-gray-900">
-                  Chào mừng đến với hành trình thực tập của bạn!
-                </h3>
-                <p className="mt-2 text-sm text-gray-600">
-                  Theo dõi tiến độ, hoàn thành nhiệm vụ và tận dụng tối đa trải nghiệm thực tập của
-                  bạn.
-                </p>
-                <button className="mt-6 rounded-lg bg-[#8093FF] px-6 py-2.5 text-sm font-medium text-white transition hover:bg-blue-600 shadow-sm">
-                  Xem kỳ thực tập của tôi
-                </button>
+                  <div>
+                    <span className="text-xs font-semibold text-gray-400 block mb-1">Thời gian thực tập</span>
+                    <p className="font-medium text-gray-800">
+                      {profile.internshipStartAt
+                        ? new Date(profile.internshipStartAt).toLocaleDateString('vi-VN')
+                        : '---'}{' '}
+                      đến{' '}
+                      {profile.internshipEndAt
+                        ? new Date(profile.internshipEndAt).toLocaleDateString('vi-VN')
+                        : '---'}
+                    </p>
+                  </div>
+
+                  <div>
+                    <span className="text-xs font-semibold text-gray-400 block mb-1">Cập nhật lần cuối</span>
+                    <p className="font-medium text-gray-800">
+                      {new Date(profile.updatedAt).toLocaleString('vi-VN')}
+                    </p>
+                  </div>
+                </div>
+
+                {profile.description && (
+                  <div className="pt-2">
+                    <span className="text-xs font-semibold text-gray-400 block mb-1">Kế hoạch / Ghi chú</span>
+                    <p className="text-xs text-gray-600 bg-gray-50 p-3 rounded-xl leading-relaxed">
+                      {profile.description}
+                    </p>
+                  </div>
+                )}
+
+                {/* Nút hành động cho hồ sơ */}
+                <div className="pt-4 border-t border-gray-100 flex items-center justify-between">
+                  {['DRAFT', 'NEEDS_REVISION'].includes(profile.status) ? (
+                    <Link
+                      href="/student/register-intern"
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold transition"
+                    >
+                      <PencilSquareIcon className="w-4 h-4" />
+                      Chỉnh sửa hồ sơ
+                    </Link>
+                  ) : (
+                    <span className="text-xs text-gray-400 italic">Hồ sơ đã được khóa sau khi nộp</span>
+                  )}
+
+                  {profile.status === 'APPROVED' && (
+                    <Link
+                      href="/student/progress"
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#8093FF] text-white text-xs font-bold hover:opacity-90 transition shadow-xs"
+                    >
+                      <span>Cập nhật tiến độ</span>
+                      <ArrowRightIcon className="w-3.5 h-3.5" />
+                    </Link>
+                  )}
+                </div>
               </div>
-              {/* Note: Xuất hình sinh viên ngồi máy tính từ Figma và chèn vào đây */}
-              <div className="absolute -bottom-4 right-0 z-0 h-48 w-48">
-                {
-                  <Image
-                    src="/img/student-laptop.png"
-                    alt="Student"
-                    fill
-                    className="object-contain"
-                  />
-                }
-              </div>
-            </div>
 
-            {/* Quick Links */}
-            <div className="col-span-1 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-              <h3 className="mb-4 font-bold text-gray-900">Liên kết nhanh</h3>
-              <div className="flex flex-col gap-1">
-                <Link
-                  href="#"
-                  className="flex items-center justify-between rounded-lg p-2 text-gray-700 hover:bg-gray-50 transition"
-                >
-                  <div className="flex items-center gap-3">
-                    <CloudArrowUpIcon className="h-5 w-5 text-gray-500" />{' '}
-                    <span className="text-sm font-medium">Tải tài liệu lên</span>
+              {/* Thẻ thống kê tiến độ */}
+              <div className="rounded-2xl border border-gray-200/70 bg-white p-6 shadow-xs flex flex-col justify-between">
+                <div>
+                  <h3 className="text-base font-bold text-gray-900 mb-4">Nhật ký tiến độ</h3>
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#F0F2FF] text-[#8093FF] font-black text-2xl">
+                      {dashboardData?.progressCount || 0}
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-gray-900">Bản cập nhật tiến độ</p>
+                      <p className="text-xs text-gray-500">Đã nộp định kỳ</p>
+                    </div>
                   </div>
-                  <ChevronRightIcon className="h-4 w-4 text-gray-400" />
-                </Link>
+                  <p className="text-xs text-gray-500 leading-relaxed">
+                    Sinh viên cần báo cáo định kỳ công việc thực tế tại cơ quan thực tập để Giảng viên theo dõi và nhận xét.
+                  </p>
+                </div>
+
                 <Link
-                  href="#"
-                  className="flex items-center justify-between rounded-lg p-2 text-gray-700 hover:bg-gray-50 transition"
+                  href="/student/progress"
+                  className="mt-6 flex items-center justify-center gap-2 w-full py-3 rounded-xl border border-gray-200 text-xs font-bold text-gray-700 hover:bg-gray-50 transition"
                 >
-                  <div className="flex items-center gap-3">
-                    <UserIcon className="h-5 w-5 text-gray-500" />{' '}
-                    <span className="text-sm font-medium">Liên hệ người giám sát</span>
-                  </div>
-                  <ChevronRightIcon className="h-4 w-4 text-gray-400" />
-                </Link>
-                <Link
-                  href="#"
-                  className="flex items-center justify-between rounded-lg p-2 text-gray-700 hover:bg-gray-50 transition"
-                >
-                  <div className="flex items-center gap-3">
-                    <BookOpenIcon className="h-5 w-5 text-gray-500" />{' '}
-                    <span className="text-sm font-medium">Hướng dẫn thực tập</span>
-                  </div>
-                  <ChevronRightIcon className="h-4 w-4 text-gray-400" />
-                </Link>
-                <Link
-                  href="#"
-                  className="flex items-center justify-between rounded-lg p-2 text-gray-700 hover:bg-gray-50 transition"
-                >
-                  <div className="flex items-center gap-3">
-                    <QuestionMarkCircleIcon className="h-5 w-5 text-gray-500" />{' '}
-                    <span className="text-sm font-medium">Câu hỏi thường gặp</span>
-                  </div>
-                  <ChevronRightIcon className="h-4 w-4 text-gray-400" />
+                  <span>Mở sổ nhật ký tiến độ</span>
+                  <ArrowRightIcon className="w-3.5 h-3.5" />
                 </Link>
               </div>
             </div>
-          </div>
+          )}
         </main>
       </div>
     </div>
