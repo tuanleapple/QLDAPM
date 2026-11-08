@@ -22,6 +22,7 @@ const { Client } = require('pg');
 const scrypt = util.promisify(crypto.scrypt);
 
 const API_BASE = process.env.API_BASE_URL || 'http://localhost:3000/api';
+const FE_ROOT = path.resolve(__dirname, '../frontend/app');
 
 async function hashPassword(password) {
   const salt = crypto.randomBytes(16);
@@ -49,7 +50,64 @@ async function req(method, endpoint, token, body) {
   return { status: res.status, data, elapsedMs };
 }
 
-async function main() {
+function inspectFrontendSource() {
+  console.log('\n================================================================');
+  console.log('PHẦN A: KIỂM TRA MÃ NGUỒN FRONTEND (COMMIT 57279c5)');
+  console.log('================================================================');
+
+  const expectedRoutes = [
+    { route: '/login', file: 'login/page.tsx', req: 'FR1 - Đăng nhập' },
+    { route: '/change-password', file: 'change-password/page.tsx', req: 'FR1 - Đổi mật khẩu' },
+    { route: '/student/dashboard', file: 'student/dashboard/page.tsx', req: 'FR2/FR4 - Bảng điều khiển Sinh viên' },
+    { route: '/student/register-intern', file: 'student/register-intern/page.tsx', req: 'FR2 - Đăng ký thực tập' },
+    { route: '/student/progress', file: 'student/progress/page.tsx', req: 'FR4 - Nộp báo cáo tiến độ định kỳ (MỚI)' },
+    { route: '/admin/dashboard', file: 'admin/dashboard/page.tsx', req: 'FR3 - Tổng quan hệ thống & Đơn chờ xét duyệt' },
+    { route: '/admin/application/[id]', file: 'admin/application/[id]/page.tsx', req: 'FR3 - Chi tiết hồ sơ & Phân công/Xét duyệt (MỚI)' },
+    { route: '/admin/progress-tracking', file: 'admin/progress-tracking/page.tsx', req: 'FR4 - Theo dõi tiến độ báo cáo (MỚI)' },
+    { route: '/supervisor/progress/[id]', file: 'supervisor/progress/[id]/page.tsx', req: 'FR4 - Chi tiết báo cáo tiến độ & Nhận xét GVHD (MỚI)' },
+  ];
+
+  const results = [];
+  for (const item of expectedRoutes) {
+    const fullPath = path.join(FE_ROOT, item.file);
+    const exists = fs.existsSync(fullPath);
+    let hasApiCall = false;
+    let hasAuthGuard = false;
+    if (exists) {
+      const content = fs.readFileSync(fullPath, 'utf8');
+      hasApiCall = /fetch\(|axios|\bapiRequest\b|\blogin\(|localhost:3000|NEXT_PUBLIC_API/.test(content);
+      hasAuthGuard = /localStorage\.getItem|useAuthGuard|redirect\(|router\.replace\(['"]\/login/.test(content);
+    }
+    results.push({ ...item, exists, hasApiCall, hasAuthGuard });
+    console.log(
+      `[UI Route] ${item.route.padEnd(28)} | File: ${exists ? 'CÓ' : 'THIẾU'} | Nối API: ${hasApiCall ? 'CÓ' : 'CHƯA (Mock UI)'} | Auth Guard: ${hasAuthGuard ? 'CÓ' : 'CHƯA'} | (${item.req})`,
+    );
+  }
+
+  // Check Lecturer & Enterprise dashboard folders
+  const lecturerDash = fs.existsSync(path.join(FE_ROOT, 'lecturer/dashboard/page.tsx'));
+  const enterpriseDash = fs.existsSync(path.join(FE_ROOT, 'enterprise/dashboard/page.tsx'));
+  console.log(
+    `[UI Route] /lecturer/dashboard          | File: ${lecturerDash ? 'CÓ' : 'TRỐNG (Chưa có page.tsx)'}`,
+  );
+  console.log(
+    `[UI Route] /enterprise/dashboard        | File: ${enterpriseDash ? 'CÓ' : 'TRỐNG (Chưa có page.tsx)'}`,
+  );
+
+  // Check CSS contrast fix
+  const cssPath = path.join(FE_ROOT, 'globals.css');
+  const cssContent = fs.existsSync(cssPath) ? fs.readFileSync(cssPath, 'utf8') : '';
+  const hasContrastFix = cssContent.includes('color: #111827') && !cssContent.includes('prefers-color-scheme: dark');
+  console.log(`[UI CSS]   Input text contrast fix      | ${hasContrastFix ? 'PASS (color: #111827)' : 'FAIL'}`);
+
+  return { routes: results, lecturerDash, enterpriseDash, hasContrastFix };
+}
+
+async function runBackendApiTests() {
+  console.log('\n================================================================');
+  console.log('PHẦN B: KIỂM THỬ HỆ THỐNG TẦNG BACKEND API & CSDL POSTGRESQL');
+  console.log('================================================================');
+
   const client = new Client({
     host: process.env.DATABASE_HOST || 'localhost',
     port: Number(process.env.DATABASE_PORT || 5432),
@@ -57,7 +115,15 @@ async function main() {
     password: process.env.DATABASE_PASSWORD || 'change_me',
     database: process.env.DATABASE_NAME || 'internship_management',
   });
-  await client.connect();
+
+  try {
+    await client.connect();
+  } catch (err) {
+    console.warn(
+      `[CẢNH BÁO] Không kết nối được PostgreSQL tại ${process.env.DATABASE_HOST || 'localhost'}:${process.env.DATABASE_PORT || 5432}. Hãy bật Docker Desktop và chạy 'docker start internship-management-postgres' cùng Backend để chạy lại phần kiểm thử động API.`,
+    );
+    return;
+  }
 
   console.log('--- 1. Resetting & Seeding Test Database (Section 1.7) ---');
   await client.query(`
@@ -530,8 +596,12 @@ async function main() {
   console.log('--- Completed Automated Test Suite & Cleaned Bulk Records ---');
 }
 
+async function main() {
+  inspectFrontendSource();
+  await runBackendApiTests();
+}
+
 main().catch((err) => {
   console.error(err);
   process.exit(1);
 });
-
