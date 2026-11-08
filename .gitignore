@@ -15,6 +15,10 @@ frontend/out/
 backend/.env
 frontend/.env.local
 
+# Runtime storage & demo manifests
+var/
+backend/var/
+
 # Logs & OS files
 *.log
 npm-debug.log*
