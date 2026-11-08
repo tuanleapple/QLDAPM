@@ -1,3 +1,5 @@
+'use client';
+
 import Image from 'next/image';
 import Link from 'next/link';
 import {
@@ -19,6 +21,7 @@ import {
   BookOpenIcon,
   QuestionMarkCircleIcon,
   ChevronRightIcon,
+  KeyIcon,
 } from '@heroicons/react/24/outline';
 
 export default function StudentDashboard() {
@@ -36,9 +39,8 @@ export default function StudentDashboard() {
           />
         </div>
         <nav className="mt-4 flex flex-col gap-2 px-4">
-          {/* Active Menu */}
           <Link
-            href="/dashboard"
+            href="/student/dashboard"
             className="flex items-center gap-3 rounded-lg bg-[#8093FF] px-4 py-3 text-white shadow-sm"
           >
             <HomeIcon className="h-6 w-6" />
@@ -54,11 +56,11 @@ export default function StudentDashboard() {
           </Link>
 
           <Link
-            href="#"
+            href="/student/progress"
             className="flex items-center gap-3 rounded-lg px-4 py-3 text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition"
           >
             <ArrowUpTrayIcon className="h-6 w-6" />
-            <span className="font-medium">Nộp báo cáo/Tiến độ</span>
+            <span className="font-medium">Nộp báo cáo tiến độ</span>
           </Link>
 
           <Link
@@ -69,13 +71,22 @@ export default function StudentDashboard() {
             <span className="font-medium">Kết quả đánh giá</span>
           </Link>
 
-          <Link
-            href="#"
-            className="flex items-center gap-3 rounded-lg px-4 py-3 text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition mt-4"
-          >
-            <Cog6ToothIcon className="h-6 w-6" />
-            <span className="font-medium">Cài đặt</span>
-          </Link>
+          <div className="mt-4 border-t border-gray-100 pt-4">
+            <Link
+              href="/change-password"
+              className="flex items-center gap-3 rounded-lg px-4 py-3 text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition"
+            >
+              <KeyIcon className="h-6 w-6" />
+              <span className="font-medium">Đổi mật khẩu</span>
+            </Link>
+            <Link
+              href="#"
+              className="flex items-center gap-3 rounded-lg px-4 py-3 text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition"
+            >
+              <Cog6ToothIcon className="h-6 w-6" />
+              <span className="font-medium">Cài đặt</span>
+            </Link>
+          </div>
         </nav>
       </aside>
 
@@ -98,18 +109,11 @@ export default function StudentDashboard() {
               <span className="absolute right-0 top-0 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white"></span>
             </button>
             <div className="flex items-center gap-3 border-l pl-6">
-              {/* Avatar Placeholder */}
               <div className="h-10 w-10 overflow-hidden rounded-full bg-gray-200">
-                <Image
-                  src="/img/Saly-2.png"
-                  alt="Avatar"
-                  width={40}
-                  height={40}
-                  className="object-cover"
-                />
+                <UserIcon className="h-6 w-6 m-2 text-gray-500" />
               </div>
               <div>
-                <p className="text-sm font-bold text-gray-900">Chí Thanh</p>
+                <p className="text-sm font-bold text-gray-900">Nguyễn Chí Thanh</p>
                 <p className="text-xs text-gray-500">CS - Năm 3</p>
               </div>
             </div>
@@ -118,7 +122,6 @@ export default function StudentDashboard() {
 
         {/* DASHBOARD CONTENT */}
         <main className="flex-1 overflow-y-auto p-8">
-          {/* Greeting */}
           <div className="mb-6 flex items-end justify-between">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">
@@ -130,7 +133,7 @@ export default function StudentDashboard() {
             </div>
             <button className="flex items-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50">
               <CalendarIcon className="h-5 w-5 text-gray-400" />
-              Kỳ thực tập 2025
+              Kỳ thực tập 2026
             </button>
           </div>
 
@@ -286,27 +289,27 @@ export default function StudentDashboard() {
             {/* Banner */}
             <div className="relative col-span-2 overflow-hidden rounded-xl bg-[#E6EAFB] p-8">
               <div className="relative z-10 w-2/3">
-                <h3 className="text-xl font-bold text-gray-900">
-                  Chào mừng đến với hành trình thực tập của bạn!
-                </h3>
+                <h3 className="text-xl font-bold text-gray-900">Hành trình thực tập của bạn</h3>
                 <p className="mt-2 text-sm text-gray-600">
-                  Theo dõi tiến độ, hoàn thành nhiệm vụ và tận dụng tối đa trải nghiệm thực tập của
-                  bạn.
+                  Đừng quên nộp báo cáo tiến độ hàng tuần để Giảng viên hướng dẫn theo dõi.
                 </p>
-                <button className="mt-6 rounded-lg bg-[#8093FF] px-6 py-2.5 text-sm font-medium text-white transition hover:bg-blue-600 shadow-sm">
-                  Xem kỳ thực tập của tôi
-                </button>
+                <Link
+                  href="/student/progress"
+                  className="mt-6 inline-block rounded-lg bg-[#8093FF] px-6 py-2.5 text-sm font-medium text-white transition hover:bg-blue-600 shadow-sm"
+                >
+                  Nộp báo cáo ngay
+                </Link>
               </div>
               {/* Note: Xuất hình sinh viên ngồi máy tính từ Figma và chèn vào đây */}
               <div className="absolute -bottom-4 right-0 z-0 h-48 w-48">
-                {
+                {/*  Bỏ comment phần này khi đã có hình
                   <Image
                     src="/img/student-laptop.png"
                     alt="Student"
                     fill
                     className="object-contain"
                   />
-                }
+                */}
               </div>
             </div>
 
