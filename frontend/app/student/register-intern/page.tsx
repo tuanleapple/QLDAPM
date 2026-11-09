@@ -267,7 +267,7 @@ export default function RegisterInternshipPage() {
                     disabled={isLocked || periods.length === 0}
                     value={periodId}
                     onChange={(e) => setPeriodId(e.target.value)}
-                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm focus:border-[#8093FF] focus:outline-none focus:ring-1 focus:ring-[#8093FF] disabled:bg-gray-50 transition"
+                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-900 focus:border-[#8093FF] focus:outline-none focus:ring-1 focus:ring-[#8093FF] disabled:bg-gray-100 disabled:text-gray-900 disabled:opacity-100 disabled:cursor-not-allowed transition"
                   >
                     {periods.length === 0 ? (
                       <option value="">Chưa có đợt thực tập nào mở</option>
@@ -293,7 +293,7 @@ export default function RegisterInternshipPage() {
                     disabled={isLocked}
                     value={enterpriseId}
                     onChange={(e) => setEnterpriseId(e.target.value)}
-                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm focus:border-[#8093FF] focus:outline-none focus:ring-1 focus:ring-[#8093FF] disabled:bg-gray-50 transition"
+                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-900 focus:border-[#8093FF] focus:outline-none focus:ring-1 focus:ring-[#8093FF] disabled:bg-gray-100 disabled:text-gray-900 disabled:opacity-100 disabled:cursor-not-allowed transition"
                   >
                     <option value="">-- Chưa có doanh nghiệp / Tự liên hệ sau --</option>
                     {enterprises.map((ent) => (
@@ -316,7 +316,7 @@ export default function RegisterInternshipPage() {
                   value={position}
                   onChange={(e) => setPosition(e.target.value)}
                   placeholder="VD: Lập trình viên Backend Node.js / React Frontend"
-                  className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:border-[#8093FF] focus:outline-none focus:ring-1 focus:ring-[#8093FF] disabled:bg-gray-50 transition"
+                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-900 focus:border-[#8093FF] focus:outline-none focus:ring-1 focus:ring-[#8093FF] disabled:bg-gray-100 disabled:text-gray-900 disabled:opacity-100 disabled:cursor-not-allowed transition"
                   required
                 />
               </div>
@@ -332,7 +332,7 @@ export default function RegisterInternshipPage() {
                     disabled={isLocked}
                     value={internshipStartAt}
                     onChange={(e) => setInternshipStartAt(e.target.value)}
-                    className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:border-[#8093FF] focus:outline-none focus:ring-1 focus:ring-[#8093FF] disabled:bg-gray-50 transition"
+                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-900 focus:border-[#8093FF] focus:outline-none focus:ring-1 focus:ring-[#8093FF] disabled:bg-gray-100 disabled:text-gray-900 disabled:opacity-100 disabled:cursor-not-allowed transition"
                   />
                 </div>
                 <div>
@@ -344,7 +344,7 @@ export default function RegisterInternshipPage() {
                     disabled={isLocked}
                     value={internshipEndAt}
                     onChange={(e) => setInternshipEndAt(e.target.value)}
-                    className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:border-[#8093FF] focus:outline-none focus:ring-1 focus:ring-[#8093FF] disabled:bg-gray-50 transition"
+                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-900 focus:border-[#8093FF] focus:outline-none focus:ring-1 focus:ring-[#8093FF] disabled:bg-gray-100 disabled:text-gray-900 disabled:opacity-100 disabled:cursor-not-allowed transition"
                   />
                 </div>
               </div>
@@ -360,7 +360,7 @@ export default function RegisterInternshipPage() {
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Ghi chú thêm về mục tiêu thực tập, công nghệ sử dụng, người hướng dẫn tại doanh nghiệp..."
-                  className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:border-[#8093FF] focus:outline-none focus:ring-1 focus:ring-[#8093FF] disabled:bg-gray-50 transition resize-none"
+                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-900 focus:border-[#8093FF] focus:outline-none focus:ring-1 focus:ring-[#8093FF] disabled:bg-gray-100 disabled:text-gray-900 disabled:opacity-100 disabled:cursor-not-allowed transition resize-none"
                 />
               </div>
 
