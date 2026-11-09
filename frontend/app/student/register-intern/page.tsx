@@ -109,21 +109,34 @@ export default function RegisterInternshipPage() {
       setError(null);
       setSuccessMsg(null);
 
-      const payload = {
-        periodId,
-        enterpriseId: enterpriseId || null,
+      const baseData: Record<string, unknown> = {
         position: position.trim(),
         title: position.trim(),
-        description: description.trim() || null,
-        internshipStartAt: internshipStartAt ? new Date(internshipStartAt).toISOString() : null,
-        internshipEndAt: internshipEndAt ? new Date(internshipEndAt).toISOString() : null,
       };
+      if (enterpriseId && enterpriseId.trim()) {
+        baseData.enterpriseId = enterpriseId;
+      }
+      if (description.trim()) {
+        baseData.description = description.trim();
+      }
+      if (internshipStartAt) {
+        baseData.internshipStartAt = internshipStartAt;
+      }
+      if (internshipEndAt) {
+        baseData.internshipEndAt = internshipEndAt;
+      }
 
       let saved: InternshipProfile;
       if (existingProfile?.id) {
-        saved = await apiClient.patch<InternshipProfile>(`/internships/profiles/${existingProfile.id}`, payload);
+        // Cập nhật bản ghi hiện có: KHÔNG gửi kèm periodId vì backend UpdateProfileDto không cho phép đổi kỳ
+        saved = await apiClient.patch<InternshipProfile>(`/internships/profiles/${existingProfile.id}`, baseData);
       } else {
-        saved = await apiClient.post<InternshipProfile>('/internships/profiles', payload);
+        // Tạo mới: gửi kèm periodId bắt buộc
+        const createPayload = {
+          periodId,
+          ...baseData,
+        };
+        saved = await apiClient.post<InternshipProfile>('/internships/profiles', createPayload);
       }
 
       setExistingProfile(saved);
@@ -144,20 +157,31 @@ export default function RegisterInternshipPage() {
       setSuccessMsg(null);
 
       let profileId = existingProfile?.id;
-      const payload = {
-        periodId,
-        enterpriseId: enterpriseId || null,
+      const baseData: Record<string, unknown> = {
         position: position.trim(),
         title: position.trim(),
-        description: description.trim() || null,
-        internshipStartAt: internshipStartAt ? new Date(internshipStartAt).toISOString() : null,
-        internshipEndAt: internshipEndAt ? new Date(internshipEndAt).toISOString() : null,
       };
+      if (enterpriseId && enterpriseId.trim()) {
+        baseData.enterpriseId = enterpriseId;
+      }
+      if (description.trim()) {
+        baseData.description = description.trim();
+      }
+      if (internshipStartAt) {
+        baseData.internshipStartAt = internshipStartAt;
+      }
+      if (internshipEndAt) {
+        baseData.internshipEndAt = internshipEndAt;
+      }
 
       if (profileId) {
-        await apiClient.patch(`/internships/profiles/${profileId}`, payload);
+        await apiClient.patch(`/internships/profiles/${profileId}`, baseData);
       } else {
-        const created = await apiClient.post<InternshipProfile>('/internships/profiles', payload);
+        const createPayload = {
+          periodId,
+          ...baseData,
+        };
+        const created = await apiClient.post<InternshipProfile>('/internships/profiles', createPayload);
         profileId = created.id;
       }
 
