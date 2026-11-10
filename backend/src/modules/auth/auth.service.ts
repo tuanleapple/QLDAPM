@@ -52,7 +52,8 @@ export class AuthService {
   async me(userId: string): Promise<AuthenticatedUser> {
     const user = await this.users.findActiveById(userId);
     if (!user) throw new UnauthorizedException('Account unavailable');
-    return { id: user.id, email: user.email, role: user.role };
+    const fullName = (await this.users.findDisplayName?.(user.id)) ?? undefined;
+    return { id: user.id, email: user.email, role: user.role, ...(fullName ? { fullName } : {}) };
   }
 
   async changePassword(userId: string, currentPassword: string, newPassword: string) {
@@ -76,11 +77,22 @@ export class AuthService {
 
   verifyAccessToken(token: string): AuthenticatedUser {
     const payload = this.verifyToken(token, 'access');
-    return { id: payload.id, email: payload.email, role: payload.role };
+    return {
+      id: payload.id,
+      email: payload.email,
+      role: payload.role,
+      ...(payload.fullName ? { fullName: payload.fullName } : {}),
+    };
   }
 
   private async issueSession(user: User): Promise<Record<string, unknown>> {
-    const identity: AuthenticatedUser = { id: user.id, email: user.email, role: user.role };
+    const fullName = (await this.users.findDisplayName?.(user.id)) ?? undefined;
+    const identity: AuthenticatedUser = {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      ...(fullName ? { fullName } : {}),
+    };
     const accessToken = this.sign(identity, 'access', this.ttl('AUTH_ACCESS_TTL_SECONDS', 900));
     const refreshToken = this.sign(
       identity,

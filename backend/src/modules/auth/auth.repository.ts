@@ -50,4 +50,18 @@ export class AuthUserRepository {
   saveRefreshTokenHash(id: string, refreshTokenHash: string) {
     return this.users.update(id, { refreshTokenHash });
   }
+
+  async findDisplayName(userId: string): Promise<string | null> {
+    const rows = await this.users.query(
+      `SELECT COALESCE(s.full_name, o.full_name, sp.full_name, er.full_name) AS "displayName"
+       FROM users u
+       LEFT JOIN students s ON s.user_id = u.id
+       LEFT JOIN officers o ON o.user_id = u.id
+       LEFT JOIN supervisors sp ON sp.user_id = u.id
+       LEFT JOIN enterprise_reps er ON er.user_id = u.id
+       WHERE u.id = $1`,
+      [userId],
+    );
+    return rows[0]?.displayName ?? null;
+  }
 }

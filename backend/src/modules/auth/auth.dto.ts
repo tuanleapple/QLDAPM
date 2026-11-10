@@ -43,6 +43,7 @@ export class AuthUserResponseDto {
   @ApiProperty({ format: 'uuid' }) id!: string;
   @ApiProperty({ format: 'email' }) email!: string;
   @ApiProperty({ enum: UserRole }) role!: UserRole;
+  @ApiProperty({ nullable: true, required: false }) fullName?: string;
 }
 
 export class AuthTokenResponseDto {
