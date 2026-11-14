@@ -28,8 +28,8 @@ export default function StudentDashboard() {
   return (
     <div className="flex min-h-screen bg-[#F9FAFB]">
       {/* ================= SIDEBAR ================= */}
-      <aside className="w-64 flex-shrink-0 border-r border-gray-200 bg-white">
-        <div className="flex h-20 items-center px-8">
+      <aside className="w-64 flex-shrink-0 bg-white">
+        <div className="flex h-24 items-center justify-center">
           <Image
             src="/img/sims_logo_concept_01 3.png"
             alt="SIMS Logo"

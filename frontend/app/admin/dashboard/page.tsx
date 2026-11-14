@@ -9,6 +9,7 @@ import {
   BuildingOfficeIcon,
   BriefcaseIcon,
   ChartBarIcon,
+  ClipboardDocumentListIcon,
   Cog6ToothIcon,
   MagnifyingGlassIcon,
   BellIcon,
@@ -113,6 +114,15 @@ export default function AdminDashboard() {
             <ChartBarIcon className="h-5 w-5" />
             <span className="text-sm font-medium">Theo dõi tiến độ</span>
           </Link>
+
+          <Link
+            href="/admin/result"
+            className="flex items-center gap-3 rounded-lg px-4 py-3 text-gray-300 hover:bg-[#3D3170] hover:text-white transition"
+          >
+            <ClipboardDocumentListIcon className="h-5 w-5" />
+            <span className="text-sm font-medium">Tổng hợp kết quả</span>
+          </Link>
+
           <Link
             href="#"
             className="flex items-center gap-3 rounded-lg px-4 py-3 text-gray-300 hover:bg-[#3D3170] hover:text-white transition"
