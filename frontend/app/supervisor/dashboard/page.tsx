@@ -2,6 +2,7 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
+import Link from 'next/link';
 import {
   UsersIcon,
   ChatBubbleLeftRightIcon,
@@ -10,6 +11,7 @@ import {
   PaperAirplaneIcon,
   CheckCircleIcon,
   ArrowPathIcon,
+  ClipboardDocumentCheckIcon,
 } from '@heroicons/react/24/outline';
 import { AppSidebar } from '@/components/layout/AppSidebar';
 import { AppHeader } from '@/components/layout/AppHeader';
@@ -177,14 +179,22 @@ export default function SupervisorDashboard() {
                     )}
                   </div>
 
-                  <div className="pt-4 mt-4 border-t border-gray-100">
+                  <div className="pt-4 mt-4 border-t border-gray-100 flex items-center gap-2">
                     <button
                       onClick={() => handleOpenProgressModal(p)}
-                      className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#8093FF] text-white text-xs font-bold hover:opacity-90 shadow-xs transition"
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-700 text-xs font-bold hover:bg-gray-50 transition"
                     >
-                      <ChatBubbleLeftRightIcon className="w-4 h-4" />
-                      <span>Xem tiến độ & Nhận xét</span>
+                      <ChatBubbleLeftRightIcon className="w-4 h-4 text-gray-400" />
+                      <span>Xem tiến độ</span>
                     </button>
+
+                    <Link
+                      href={`/supervisor/evaluate/${p.id}`}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-[#8093FF] text-white text-xs font-bold hover:opacity-90 shadow-xs transition"
+                    >
+                      <ClipboardDocumentCheckIcon className="w-4 h-4" />
+                      <span>Chấm điểm</span>
+                    </Link>
                   </div>
                 </div>
               ))}

@@ -139,3 +139,65 @@ export interface StudentDashboardData {
     isLate: boolean;
   } | null;
 }
+
+export interface ReportVersion {
+  id: string;
+  profileId: string;
+  version: number;
+  originalName: string;
+  sizeBytes: number;
+  mimeType: string;
+  submittedAt: string;
+  isLate: boolean;
+}
+
+export type CriteriaCategory = 'ENTERPRISE' | 'PROCESS' | 'REPORT';
+export type FormType = 'ENTERPRISE' | 'SUPERVISOR';
+
+export interface Criterion {
+  id: string;
+  periodId: string;
+  formType: FormType;
+  category: CriteriaCategory;
+  code: string;
+  name: string;
+  description?: string | null;
+  weight: string;
+  active: boolean;
+}
+
+export interface EvaluationDetail {
+  id?: string;
+  criterionId: string;
+  score: number;
+  comment?: string | null;
+  criterion?: Criterion;
+}
+
+export interface EvaluationForm {
+  id: string;
+  profileId: string;
+  evaluatorId: string;
+  formType: FormType;
+  status: 'DRAFT' | 'SUBMITTED';
+  submittedAt?: string | null;
+  reportId?: string | null;
+  details: EvaluationDetail[];
+  profile?: InternshipProfile;
+  evaluator?: User;
+}
+
+export interface EvaluationResult {
+  id?: string;
+  profileId: string;
+  enterpriseScore?: number | null;
+  supervisorProcessScore?: number | null;
+  supervisorReportScore?: number | null;
+  calculatedTotalScore?: number | null;
+  adjustedTotalScore?: number | null;
+  totalScore?: number | null;
+  finalizedAt?: string | null;
+  publishedAt?: string | null;
+  status?: string;
+  profile?: InternshipProfile;
+}
