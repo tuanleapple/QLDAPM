@@ -9,9 +9,11 @@ import {
   HomeIcon,
   DocumentPlusIcon,
   ArrowUpTrayIcon,
+  DocumentTextIcon,
   UsersIcon,
   ArrowRightOnRectangleIcon,
   ClipboardDocumentCheckIcon,
+  ChartBarIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '@/lib/auth-context';
 
@@ -64,6 +66,10 @@ export function AppSidebar() {
                 <ArrowUpTrayIcon className="h-5 w-5" />
                 <span>Nhật ký tiến độ</span>
               </Link>
+              <Link href="/student/submit-report" className={navLinkClass('/student/submit-report')}>
+                <DocumentTextIcon className="h-5 w-5" />
+                <span>Báo cáo cuối kỳ</span>
+              </Link>
             </>
           )}
 
@@ -73,6 +79,10 @@ export function AppSidebar() {
               <Link href="/officer/dashboard" className={navLinkClass('/officer/dashboard')}>
                 <ClipboardDocumentCheckIcon className="h-5 w-5" />
                 <span>Xét duyệt hồ sơ</span>
+              </Link>
+              <Link href="/admin/result" className={navLinkClass('/admin/result')}>
+                <ChartBarIcon className="h-5 w-5" />
+                <span>Tổng hợp kết quả</span>
               </Link>
             </>
           )}
