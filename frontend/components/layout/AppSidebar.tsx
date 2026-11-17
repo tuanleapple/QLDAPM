@@ -14,6 +14,7 @@ import {
   ArrowRightOnRectangleIcon,
   ClipboardDocumentCheckIcon,
   ChartBarIcon,
+  BuildingOfficeIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '@/lib/auth-context';
 
@@ -24,6 +25,7 @@ export function AppSidebar() {
   const isStudent = user?.role === 'STUDENT';
   const isOfficer = user?.role === 'OFFICER';
   const isSupervisor = user?.role === 'SUPERVISOR';
+  const isEnterprise = user?.role === 'ENTERPRISE_REP';
 
   const navLinkClass = (href: string) => {
     const isActive = pathname === href || pathname?.startsWith(`${href}/`);
@@ -93,6 +95,16 @@ export function AppSidebar() {
               <Link href="/supervisor/dashboard" className={navLinkClass('/supervisor/dashboard')}>
                 <UsersIcon className="h-5 w-5" />
                 <span>Sinh viên hướng dẫn</span>
+              </Link>
+            </>
+          )}
+
+          {/* Menu cho Doanh nghiệp */}
+          {isEnterprise && (
+            <>
+              <Link href="/enterprise/dashboard" className={navLinkClass('/enterprise/dashboard')}>
+                <BuildingOfficeIcon className="h-5 w-5" />
+                <span>Quản lý SV thực tập</span>
               </Link>
             </>
           )}

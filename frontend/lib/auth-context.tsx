@@ -29,6 +29,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       case 'SUPERVISOR':
         router.push('/supervisor/dashboard');
         break;
+      case 'ENTERPRISE_REP':
+        router.push('/enterprise/dashboard');
+        break;
       case 'STUDENT':
       default:
         router.push('/student/dashboard');
