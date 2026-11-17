@@ -2,7 +2,13 @@
 'use client';
 
 import React from 'react';
-import { BellIcon, ArrowRightOnRectangleIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import Link from 'next/link';
+import {
+  BellIcon,
+  ArrowRightOnRectangleIcon,
+  MagnifyingGlassIcon,
+  KeyIcon,
+} from '@heroicons/react/24/outline';
 import { useAuth } from '@/lib/auth-context';
 
 interface AppHeaderProps {
@@ -64,10 +70,19 @@ export function AppHeader({ title }: AppHeaderProps) {
             </span>
           </div>
 
+          <Link
+            href="/change-password"
+            title="Đổi mật khẩu"
+            className="ml-4 flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:text-[#8093FF] hover:bg-indigo-50 rounded-lg border border-gray-200 transition"
+          >
+            <KeyIcon className="w-4 h-4 text-gray-500" />
+            <span>Đổi MK</span>
+          </Link>
+
           <button
             onClick={logout}
             title="Đăng xuất"
-            className="ml-4 flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-lg border border-rose-100 transition"
+            className="ml-2 flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-lg border border-rose-100 transition"
           >
             <ArrowRightOnRectangleIcon className="w-4 h-4" />
             <span>Đăng xuất</span>

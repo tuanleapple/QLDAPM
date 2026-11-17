@@ -8,6 +8,7 @@ export interface User {
   role: UserRole;
   fullName?: string;
   phone?: string;
+  studentCode?: string;
   status?: 'ACTIVE' | 'LOCKED';
   createdAt?: string;
 }
