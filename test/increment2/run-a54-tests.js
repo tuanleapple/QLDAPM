@@ -4,8 +4,8 @@ const crypto = require('node:crypto');
 const util = require('node:util');
 
 // Resolve node_modules from root or backend/node_modules
-const backendNodeModules = path.resolve(__dirname, '../backend/node_modules');
-const rootNodeModules = path.resolve(__dirname, '../node_modules');
+const backendNodeModules = path.resolve(__dirname, '../../backend/node_modules');
+const rootNodeModules = path.resolve(__dirname, '../../node_modules');
 if (fs.existsSync(backendNodeModules) && !module.paths.includes(backendNodeModules)) {
   module.paths.unshift(backendNodeModules);
 }
@@ -13,9 +13,9 @@ if (fs.existsSync(rootNodeModules) && !module.paths.includes(rootNodeModules)) {
   module.paths.unshift(rootNodeModules);
 }
 
-const envPath = fs.existsSync(path.resolve(__dirname, '../.env'))
-  ? path.resolve(__dirname, '../.env')
-  : path.resolve(__dirname, '../backend/.env');
+const envPath = fs.existsSync(path.resolve(__dirname, '../../.env'))
+  ? path.resolve(__dirname, '../../.env')
+  : path.resolve(__dirname, '../../backend/.env');
 require('dotenv').config({ path: envPath });
 
 const { Client } = require('pg');
@@ -23,7 +23,7 @@ const scrypt = util.promisify(crypto.scrypt);
 
 const API_BASE = process.env.API_BASE_URL || 'http://localhost:3000/api';
 const FE_BASE = process.env.FE_BASE_URL || 'http://localhost:3001';
-const FE_ROOT = path.resolve(__dirname, '../frontend');
+const FE_ROOT = path.resolve(__dirname, '../../frontend');
 
 async function hashPassword(password) {
   const salt = crypto.randomBytes(16);
@@ -870,7 +870,7 @@ async function main() {
   logTc('TC-NFR2-02', [feProbe1, feProbe2, feProbe3, feProbe4].every((p) => p.ok), `Màn hình Frontend Increment 2 sẵn sàng: submit-report=${feProbe1.status}, admin/result=${feProbe2.status}, admin/dashboard=${feProbe3.status}, change-password=${feProbe4.status}`, '', 'INC2');
 
   // Kiểm tra lưu trữ file an toàn trên đĩa và quan hệ CSDL
-  const storageDir = path.resolve(__dirname, '../backend/var/private-reports');
+  const storageDir = path.resolve(__dirname, '../../backend/var/private-reports');
   const storageFiles = fs.existsSync(storageDir) ? fs.readdirSync(storageDir) : [];
   const validFiles = storageFiles.filter((f) => /^[0-9a-f-]+\.(pdf|docx)$/i.test(f) || f.startsWith('api-demo-'));
   logTc('TC-NFR2-03', validFiles.length >= 2, `File lưu trữ an toàn: ${validFiles.length} file trong var/private-reports, mã hóa tên ngẫu nhiên UUID (${storageFiles[0] || 'uuid.pdf'})`, '', 'INC2');

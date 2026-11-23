@@ -4,8 +4,8 @@ const crypto = require('node:crypto');
 const util = require('node:util');
 
 // Resolve node_modules from root or backend/node_modules
-const backendNodeModules = path.resolve(__dirname, '../backend/node_modules');
-const rootNodeModules = path.resolve(__dirname, '../node_modules');
+const backendNodeModules = path.resolve(__dirname, '../../backend/node_modules');
+const rootNodeModules = path.resolve(__dirname, '../../node_modules');
 if (fs.existsSync(backendNodeModules) && !module.paths.includes(backendNodeModules)) {
   module.paths.unshift(backendNodeModules);
 }
@@ -13,9 +13,9 @@ if (fs.existsSync(rootNodeModules) && !module.paths.includes(rootNodeModules)) {
   module.paths.unshift(rootNodeModules);
 }
 
-const envPath = fs.existsSync(path.resolve(__dirname, '../.env'))
-  ? path.resolve(__dirname, '../.env')
-  : path.resolve(__dirname, '../backend/.env');
+const envPath = fs.existsSync(path.resolve(__dirname, '../../.env'))
+  ? path.resolve(__dirname, '../../.env')
+  : path.resolve(__dirname, '../../backend/.env');
 require('dotenv').config({ path: envPath });
 
 const { Client } = require('pg');
@@ -23,7 +23,7 @@ const scrypt = util.promisify(crypto.scrypt);
 
 const API_BASE = process.env.API_BASE_URL || 'http://localhost:3000/api';
 const FE_BASE = process.env.FE_BASE_URL || 'http://localhost:3001';
-const FE_ROOT = path.resolve(__dirname, '../frontend');
+const FE_ROOT = path.resolve(__dirname, '../../frontend');
 
 async function hashPassword(password) {
   const salt = crypto.randomBytes(16);

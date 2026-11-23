@@ -9,15 +9,33 @@ Thư mục này chứa bộ đặc tả Test Cases (`A36`, `A37`), script kiểm
 
 ```text
 test/
-├── TEST_CASES_A36_INCREMENT1.md                           # Đặc tả 49 Test Cases Increment 1 (Task A36)
-├── TEST_CASES_A37_INCREMENT2.md                           # Đặc tả 40 Test Cases Increment 2 (Task A37)
-├── run-a45-tests.js                                       # Script tự động seed DB & chạy 49 TCs Increment 1 (Task A45)
-├── run-a54-tests.js                                       # Script tự động seed DB & chạy 89 TCs Inc 2 + Hồi quy Inc 1 (Task A54)
-├── BAO_CAO_KIEM_THU_A45_INCREMENT1.md                     # Báo cáo kết quả kiểm thử Increment 1 (Task A45)
-├── BAO_CAO_KIEM_THU_A54_INCREMENT2_HOI_QUY.md             # Báo cáo kết quả kiểm thử Increment 2 & Hồi quy Inc 1 (Task A54)
-├── BAO_CAO_TONG_HOP_KIEM_TRA_HE_THONG_INC1_INC2_INC3.md   # Báo cáo tổng rà soát toàn hệ thống (Inc 1, 2, 3 @ commit bd9534e)
-└── README.md                                              # Tài liệu hướng dẫn chạy kiểm thử & danh mục tài khoản mẫu
+├── increment1/
+│   ├── TEST_CASES_A36_INCREMENT1.md                           # Đặc tả 49 Test Cases Increment 1 (Task A36)
+│   ├── run-a45-tests.js                                       # Script tự động seed DB & chạy 49 TCs Increment 1 (Task A45)
+│   └── BAO_CAO_KIEM_THU_A45_INCREMENT1.md                     # Báo cáo kết quả kiểm thử Increment 1 (CP1)
+├── increment2/
+│   ├── TEST_CASES_A37_INCREMENT2.md                           # Đặc tả 40 Test Cases Increment 2 (Task A37)
+│   ├── run-a54-tests.js                                       # Script tự động seed DB & chạy 89 TCs Inc 2 + Hồi quy Inc 1 (Task A54)
+│   └── BAO_CAO_KIEM_THU_A54_INCREMENT2_HOI_QUY.md             # Báo cáo kết quả kiểm thử Increment 2 & Hồi quy Inc 1 (CP2)
+├── increment3/
+│   └── TEST_CASES_INCREMENT3_STABILIZATION.md                 # Test Cases bổ sung Inc 3: Change Event (dời deadline sớm 1 tuần) & Fix Bug (CP8, CP3)
+├── BAO_CAO_TONG_HOP_KIEM_TRA_HE_THONG_INC1_INC2_INC3.md       # Báo cáo tổng hợp kiểm thử & đối chiếu Checkpoints (CP1, CP2, CP8, CP3)
+├── DANH_SACH_LOI.md                                           # Danh sách lỗi tóm tắt cho team Dev theo dõi & sửa
+└── README.md                                                  # Tài liệu hướng dẫn chạy kiểm thử, tài khoản mẫu & bảng Checkpoints
 ```
+
+---
+
+## 1.1. Bảng Checkpoints Kiểm thử & Nghiệm thu
+
+| CP | Kiểm tra gì | Tiêu chí đạt chính | Tài liệu / Thư mục đối chiếu |
+| :---: | :--- | :--- | :--- |
+| **`CP7`** | Kế hoạch & Baseline V1.0 (`A20`) | SRS & Test Plan chốt, ma trận truy vết đủ, 5 thành viên đã đọc | `docs/` & `test/README.md` |
+| **`CP5`** | Rà soát thiết kế cho INC1 (`A34`) | FR1–FR4 map API/màn hình, RBAC 4.9 khớp API, Test case INC1 đã soạn & duyệt chéo | `test/increment1/TEST_CASES_A36_INCREMENT1.md` |
+| **`CP1`** | Progress Check & Demo INC1 (`A47`) | Smoke test 100%, phân quyền 100%, High FR1–FR4 $\ge 90\%$, không còn Critical mở, demo 2 lần liên tiếp | `test/increment1/` |
+| **`CP2`** | Demo luồng 5 bước — INC2 đạt (`A56`) | High FR5–FR6 $\ge 90\%$, điểm tổng đúng BR6, Regression INC1 100%, không còn Critical mở | `test/increment2/` |
+| **`CP8`** | Change Event & Baseline V2.0 (`A58`) | Phân tích tác động Change Event (dời deadline sớm hơn 1 tuần) & chốt Baseline V2.0 | `test/increment3/` |
+| **`CP3`** | Nghiệm thu & bàn giao cuối (`A64`) | Luồng 5 bước chạy không lỗi 2 lần liên tiếp, mọi Critical/Major đóng hoặc có workaround được duyệt, Change Event có test & kết quả, Test Report hoàn thành | `test/increment3/` & `BAO_CAO_TONG_HOP_...md` |
 
 ---
 
@@ -48,11 +66,11 @@ Từ thư mục gốc của dự án (`QLDAPM`):
 
 - **Chạy kiểm thử đầy đủ Increment 2 & Hồi quy Increment 1 (89 Test Cases — Khuyến nghị):**
   ```bash
-  node test/run-a54-tests.js
+  node test/increment2/run-a54-tests.js
   ```
 - **Chạy riêng bộ kiểm thử Increment 1 (49 Test Cases):**
   ```bash
-  node test/run-a45-tests.js
+  node test/increment1/run-a45-tests.js
   ```
 - **Chạy Unit Tests Backend (9 suites, 35 tests):**
   ```bash
