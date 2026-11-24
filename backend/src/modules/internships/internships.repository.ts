@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Brackets, Repository } from 'typeorm';
+import { Brackets, Repository, Not } from 'typeorm';
 import {
   Enterprise,
   EnterpriseRep,
@@ -231,6 +231,16 @@ export class InternshipsRepository {
     return this.profiles.findOne({
       where: { id },
       relations: { period: true, enterprise: true, supervisor: true, student: true },
+    });
+  }
+
+  findStudentProfileInPeriod(studentId: string, periodId: string) {
+    return this.profiles.findOne({
+      where: {
+        studentId,
+        periodId,
+        status: Not(ProfileStatus.REJECTED),
+      },
     });
   }
 

@@ -15,6 +15,7 @@ import {
   ClipboardDocumentCheckIcon,
   ChartBarIcon,
   BuildingOfficeIcon,
+  CalendarDaysIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '@/lib/auth-context';
 
@@ -60,7 +61,10 @@ export function AppSidebar() {
                 <HomeIcon className="h-5 w-5" />
                 <span>Bảng điều khiển</span>
               </Link>
-              <Link href="/student/register-intern" className={navLinkClass('/student/register-intern')}>
+              <Link
+                href="/student/register-intern"
+                className={navLinkClass('/student/register-intern')}
+              >
                 <DocumentPlusIcon className="h-5 w-5" />
                 <span>Đăng ký thực tập</span>
               </Link>
@@ -68,7 +72,10 @@ export function AppSidebar() {
                 <ArrowUpTrayIcon className="h-5 w-5" />
                 <span>Nhật ký tiến độ</span>
               </Link>
-              <Link href="/student/submit-report" className={navLinkClass('/student/submit-report')}>
+              <Link
+                href="/student/submit-report"
+                className={navLinkClass('/student/submit-report')}
+              >
                 <DocumentTextIcon className="h-5 w-5" />
                 <span>Báo cáo cuối kỳ</span>
               </Link>
@@ -85,6 +92,13 @@ export function AppSidebar() {
               <Link href="/admin/result" className={navLinkClass('/admin/result')}>
                 <ChartBarIcon className="h-5 w-5" />
                 <span>Tổng hợp kết quả</span>
+              </Link>
+              <Link
+                href="/officer/progress-tracking"
+                className={navLinkClass('/officer/progress-tracking')}
+              >
+                <CalendarDaysIcon className="h-5 w-5" />
+                <span>Theo dõi tiến độ</span>
               </Link>
             </>
           )}

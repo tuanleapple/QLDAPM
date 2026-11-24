@@ -72,19 +72,77 @@ export class InternshipsService {
     ].join('\r\n');
   }
 
+  // async createProfile(actorId: string, input: ProfileDraftInput) {
+  //   if (!input.periodId) throw new BadRequestException('periodId is required');
+  //   const period = await this.internshipsRepository.findActivePeriod(input.periodId);
+  //   if (!period) throw new NotFoundException('Internship period not found');
+  //   if (
+  //     input.enterpriseId &&
+  //     !(await this.internshipsRepository.findEnterprise(input.enterpriseId))
+  //   )
+  //     throw new NotFoundException('Enterprise not found');
+  //   const now = new Date();
+  //   if (now < period.registrationOpenAt || now > period.registrationCloseAt)
+  //     throw new BadRequestException('Registration is closed');
+  //   const profile = new InternshipProfile();
+  //   Object.assign(profile, {
+  //     studentId: actorId,
+  //     periodId: input.periodId,
+  //     enterpriseId: input.enterpriseId ?? null,
+  //     title: input.title ?? input.position ?? '',
+  //     position: input.position ?? null,
+  //     internshipStartAt: input.internshipStartAt ?? null,
+  //     internshipEndAt: input.internshipEndAt ?? null,
+  //     description: input.description ?? null,
+  //     status: ProfileStatus.DRAFT,
+  //   });
+  //   try {
+  //     const saved = await this.internshipsRepository.saveProfile(profile);
+  //     return this.profileWithHistory(saved.id);
+  //   } catch (error) {
+  //     const code = (error as { driverError?: { code?: string } })?.driverError?.code;
+  //     if (code === '23505')
+  //       throw new BadRequestException('A profile already exists for this period');
+  //     throw error;
+  //   }
+  // }
+
   async createProfile(actorId: string, input: ProfileDraftInput) {
-    if (!input.periodId) throw new BadRequestException('periodId is required');
+    if (!input.periodId) {
+      throw new BadRequestException('periodId is required');
+    }
+
     const period = await this.internshipsRepository.findActivePeriod(input.periodId);
-    if (!period) throw new NotFoundException('Internship period not found');
+
+    if (!period) {
+      throw new NotFoundException('Internship period not found');
+    }
+
     if (
       input.enterpriseId &&
       !(await this.internshipsRepository.findEnterprise(input.enterpriseId))
-    )
+    ) {
       throw new NotFoundException('Enterprise not found');
+    }
+
     const now = new Date();
-    if (now < period.registrationOpenAt || now > period.registrationCloseAt)
+
+    if (now < period.registrationOpenAt || now > period.registrationCloseAt) {
       throw new BadRequestException('Registration is closed');
+    }
+
+    // Kiểm tra hồ sơ đang hoạt động trong đợt thực tập
+    const existingActive = await this.internshipsRepository.findStudentProfileInPeriod(
+      actorId,
+      input.periodId,
+    );
+
+    if (existingActive) {
+      throw new BadRequestException('An active profile already exists for this period');
+    }
+
     const profile = new InternshipProfile();
+
     Object.assign(profile, {
       studentId: actorId,
       periodId: input.periodId,
@@ -96,13 +154,24 @@ export class InternshipsService {
       description: input.description ?? null,
       status: ProfileStatus.DRAFT,
     });
+
     try {
       const saved = await this.internshipsRepository.saveProfile(profile);
+
       return this.profileWithHistory(saved.id);
     } catch (error) {
-      const code = (error as { driverError?: { code?: string } })?.driverError?.code;
-      if (code === '23505')
+      const code = (
+        error as {
+          driverError?: {
+            code?: string;
+          };
+        }
+      )?.driverError?.code;
+
+      if (code === '23505') {
         throw new BadRequestException('A profile already exists for this period');
+      }
+
       throw error;
     }
   }

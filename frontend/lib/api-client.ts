@@ -114,7 +114,12 @@ async function request<T>(
 
   const response = await fetch(url, config);
 
-  if (response.status === 401 && !isRetry && !endpoint.includes('/auth/login') && !endpoint.includes('/auth/refresh')) {
+  if (
+    response.status === 401 &&
+    !isRetry &&
+    !endpoint.includes('/auth/login') &&
+    !endpoint.includes('/auth/refresh')
+  ) {
     if (!isRefreshing) {
       isRefreshing = true;
       const newToken = await refreshAccessToken();
@@ -201,7 +206,9 @@ export const apiClient = {
 
   download: async (endpoint: string, filename: string) => {
     const token = getStoredAccessToken();
-    const url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+    const url = endpoint.startsWith('http')
+      ? endpoint
+      : `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
     const headers = new Headers();
     if (token) headers.set('Authorization', `Bearer ${token}`);
 
@@ -217,5 +224,15 @@ export const apiClient = {
     a.click();
     document.body.removeChild(a);
     window.URL.revokeObjectURL(blobUrl);
+  },
+
+  changePassword: async (
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<{ message?: string }> => {
+    return apiClient.post('/auth/change-password', {
+      currentPassword,
+      newPassword,
+    });
   },
 };

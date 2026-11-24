@@ -56,7 +56,7 @@ export function AppHeader({ title }: AppHeaderProps) {
           aria-label="Thông báo"
           className="relative text-gray-500 hover:text-gray-700 p-2 rounded-lg hover:bg-gray-50 transition"
         >
-          <BellIcon className="h-6 w-6" />
+          {/* <BellIcon className="h-6 w-6" /> */}
         </button>
 
         <div className="flex items-center gap-3 border-l border-gray-200 pl-6">
