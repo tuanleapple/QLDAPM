@@ -1,4 +1,3 @@
-// frontend/app/officer/dashboard/page.tsx
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
@@ -12,12 +11,20 @@ import {
   PencilSquareIcon,
   CheckIcon,
   XMarkIcon,
+  EyeIcon,
+  BuildingOffice2Icon,
+  UserIcon,
+  AcademicCapIcon,
+  CalendarDaysIcon,
+  ClipboardDocumentListIcon,
 } from '@heroicons/react/24/outline';
+
 import { AppSidebar } from '@/components/layout/AppSidebar';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { apiClient } from '@/lib/api-client';
+
 import {
   InternshipProfile,
   OfficerDashboardData,
@@ -25,6 +32,71 @@ import {
   ProfileStatus,
   Supervisor,
 } from '@/types/api';
+
+// Kiểu dữ liệu chi tiết theo ProfileResponseDto của Backend
+interface OfficerProfileDetail extends Omit<
+  InternshipProfile,
+  'student' | 'enterprise' | 'supervisor' | 'statusHistory'
+> {
+  student: {
+    userId: string;
+    fullName: string;
+    studentCode: string;
+    major: string | null;
+  };
+
+  enterprise: {
+    id: string;
+    name: string;
+    address: string | null;
+    phone: string | null;
+    website: string | null;
+  } | null;
+
+  supervisor: {
+    userId: string;
+    fullName: string;
+    department: string | null;
+  } | null;
+
+  statusHistory?: {
+    id: string;
+    fromStatus: ProfileStatus | null;
+    toStatus: ProfileStatus;
+    changedBy: string;
+    reason: string | null;
+    createdAt: string;
+  }[];
+}
+
+const formatDate = (value?: string | null) => {
+  if (!value) return 'Chưa cập nhật';
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return 'Chưa cập nhật';
+
+  return date.toLocaleDateString('vi-VN');
+};
+
+const formatDateTime = (value?: string | null) => {
+  if (!value) return 'Chưa cập nhật';
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return 'Chưa cập nhật';
+
+  return date.toLocaleString('vi-VN');
+};
+
+const statusLabels: Record<string, string> = {
+  DRAFT: 'Bản nháp',
+  SUBMITTED: 'Đã nộp',
+  APPROVED: 'Đã phê duyệt',
+  REJECTED: 'Đã từ chối',
+  NEEDS_REVISION: 'Yêu cầu bổ sung',
+  REPORT_SUBMITTED: 'Đã nộp báo cáo',
+};
 
 export default function OfficerDashboard() {
   const [stats, setStats] = useState<OfficerDashboardData | null>(null);
@@ -41,54 +113,76 @@ export default function OfficerDashboard() {
 
   // Review Modal state
   const [selectedProfile, setSelectedProfile] = useState<InternshipProfile | null>(null);
-  const [reviewAction, setReviewAction] = useState<'APPROVED' | 'NEEDS_REVISION' | 'REJECTED'>('APPROVED');
+  const [reviewAction, setReviewAction] = useState<'APPROVED' | 'NEEDS_REVISION' | 'REJECTED'>(
+    'APPROVED',
+  );
+
   const [supervisorId, setSupervisorId] = useState('');
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
+  // Detail Modal state
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [detailProfile, setDetailProfile] = useState<OfficerProfileDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
+
+  // Lấy thống kê Dashboard
   const fetchStats = useCallback(async () => {
     try {
       const data = await apiClient.get<OfficerDashboardData>('/internships/dashboard/officer');
+
       setStats(data);
-    } catch {
-      // Fallback
+    } catch (err) {
+      console.error('Không thể tải thống kê:', err);
     }
   }, []);
 
+  // Lấy danh sách giảng viên hướng dẫn
   const fetchSupervisors = useCallback(async () => {
     try {
-      const res = await apiClient.get<PaginatedResponse<Supervisor>>('/internships/supervisors', {
+      const res = await apiClient.get<PaginatedResponse<Supervisor>>('/users', {
         page: 1,
         limit: 50,
+        role: 'SUPERVISOR',
       });
+
       setSupervisors(res.items || []);
-    } catch {
-      // Fallback
+    } catch (err) {
+      console.error('Không thể tải danh sách giảng viên:', err);
     }
   }, []);
 
+  // Lấy danh sách hồ sơ
   const fetchProfiles = useCallback(async () => {
     try {
       setLoading(true);
+
       const params: Record<string, string | number | undefined> = {
         page,
         limit: 15,
       };
+
       if (statusFilter && statusFilter !== 'ALL') {
         params.status = statusFilter;
       }
+
       if (searchTerm.trim()) {
         params.search = searchTerm.trim();
       }
 
-      const res = await apiClient.get<PaginatedResponse<InternshipProfile>>('/internships/profiles', params);
+      const res = await apiClient.get<PaginatedResponse<InternshipProfile>>(
+        '/internships/profiles',
+        params,
+      );
+
       setProfiles(res.items || []);
       setTotalPages(res.totalPages || 1);
       setTotalCount(res.total || 0);
     } catch (err: unknown) {
-      console.error(err);
+      console.error('Không thể tải danh sách hồ sơ:', err);
     } finally {
       setLoading(false);
     }
@@ -103,7 +197,31 @@ export default function OfficerDashboard() {
     fetchProfiles();
   }, [fetchProfiles]);
 
-  const handleOpenReviewModal = (profile: InternshipProfile, action: 'APPROVED' | 'NEEDS_REVISION' | 'REJECTED') => {
+  // Mở modal xem chi tiết và gọi API lấy hồ sơ
+  const handleViewDetail = async (profileId: string) => {
+    setDetailOpen(true);
+    setDetailProfile(null);
+    setDetailError(null);
+    setDetailLoading(true);
+
+    try {
+      const data = await apiClient.get<OfficerProfileDetail>(`/internships/profiles/${profileId}`);
+
+      setDetailProfile(data);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Không thể tải chi tiết hồ sơ';
+
+      setDetailError(msg);
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  // Mở modal xét duyệt
+  const handleOpenReviewModal = (
+    profile: InternshipProfile,
+    action: 'APPROVED' | 'NEEDS_REVISION' | 'REJECTED',
+  ) => {
     setSelectedProfile(profile);
     setReviewAction(action);
     setReason('');
@@ -111,8 +229,10 @@ export default function OfficerDashboard() {
     setErrorMsg(null);
   };
 
+  // Xử lý xét duyệt
   const handleReviewSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (!selectedProfile) return;
 
     if (reviewAction === 'APPROVED' && !supervisorId) {
@@ -129,9 +249,14 @@ export default function OfficerDashboard() {
       setSubmitting(true);
       setErrorMsg(null);
 
-      const payload: { status: ProfileStatus; supervisorId?: string; reason?: string } = {
+      const payload: {
+        status: ProfileStatus;
+        supervisorId?: string;
+        reason?: string;
+      } = {
         status: reviewAction,
       };
+
       if (reviewAction === 'APPROVED') {
         payload.supervisorId = supervisorId;
       } else {
@@ -140,18 +265,21 @@ export default function OfficerDashboard() {
 
       await apiClient.patch(`/internships/profiles/${selectedProfile.id}/review`, payload);
 
-      setSuccessMsg(`Đã cập nhật trạng thái hồ sơ của sinh viên thành công!`);
+      setSuccessMsg('Đã cập nhật trạng thái hồ sơ thành công!');
       setSelectedProfile(null);
+
       fetchProfiles();
       fetchStats();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Xử lý xét duyệt thất bại';
+
       setErrorMsg(msg);
     } finally {
       setSubmitting(false);
     }
   };
 
+  // Xuất danh sách CSV
   const handleExportCsv = async () => {
     try {
       await apiClient.download(
@@ -160,6 +288,7 @@ export default function OfficerDashboard() {
       );
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Tải CSV thất bại';
+
       alert(msg);
     }
   };
@@ -167,6 +296,7 @@ export default function OfficerDashboard() {
   return (
     <div className="flex min-h-screen bg-[#F8F9FA]">
       <AppSidebar />
+
       <div className="flex flex-1 flex-col overflow-hidden">
         <AppHeader title="Bảng điều khiển Cán bộ Khoa" />
 
@@ -174,9 +304,13 @@ export default function OfficerDashboard() {
           {/* Header Action */}
           <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-extrabold text-gray-900">Xét duyệt & Quản lý hồ sơ thực tập</h1>
+              <h1 className="text-2xl font-extrabold text-gray-900">
+                Xét duyệt & Quản lý hồ sơ thực tập
+              </h1>
+
               <p className="mt-1 text-sm text-gray-500">
-                Theo dõi toàn bộ đơn đăng ký thực tập, phê duyệt, phân công Giảng viên hướng dẫn và xuất danh sách.
+                Theo dõi toàn bộ đơn đăng ký thực tập, phê duyệt, phân công Giảng viên hướng dẫn và
+                xuất danh sách.
               </p>
             </div>
 
@@ -189,10 +323,15 @@ export default function OfficerDashboard() {
             </button>
           </div>
 
+          {/* Success Message */}
           {successMsg && (
             <div className="mb-6 rounded-2xl bg-emerald-50 p-4 text-sm font-bold text-emerald-800 border border-emerald-100 flex items-center justify-between">
               <span>{successMsg}</span>
-              <button onClick={() => setSuccessMsg(null)} className="text-emerald-600 hover:text-emerald-800">
+
+              <button
+                onClick={() => setSuccessMsg(null)}
+                className="text-emerald-600 hover:text-emerald-800"
+              >
                 <XMarkIcon className="w-5 h-5" />
               </button>
             </div>
@@ -203,11 +342,15 @@ export default function OfficerDashboard() {
             <div className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-xs">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-wider text-gray-400">Chờ xét duyệt</p>
+                  <p className="text-xs font-bold uppercase tracking-wider text-gray-400">
+                    Chờ xét duyệt
+                  </p>
+
                   <p className="text-3xl font-extrabold text-[#8093FF] mt-1">
                     {stats?.profileCountsByStatus?.['SUBMITTED'] || 0}
                   </p>
                 </div>
+
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 text-[#8093FF]">
                   <ClockIcon className="w-6 h-6" />
                 </div>
@@ -217,11 +360,15 @@ export default function OfficerDashboard() {
             <div className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-xs">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-wider text-gray-400">Đã phê duyệt</p>
+                  <p className="text-xs font-bold uppercase tracking-wider text-gray-400">
+                    Đã phê duyệt
+                  </p>
+
                   <p className="text-3xl font-extrabold text-emerald-600 mt-1">
                     {stats?.profileCountsByStatus?.['APPROVED'] || 0}
                   </p>
                 </div>
+
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
                   <CheckCircleIcon className="w-6 h-6" />
                 </div>
@@ -231,11 +378,15 @@ export default function OfficerDashboard() {
             <div className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-xs">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-wider text-gray-400">Yêu cầu bổ sung</p>
+                  <p className="text-xs font-bold uppercase tracking-wider text-gray-400">
+                    Yêu cầu bổ sung
+                  </p>
+
                   <p className="text-3xl font-extrabold text-amber-600 mt-1">
                     {stats?.profileCountsByStatus?.['NEEDS_REVISION'] || 0}
                   </p>
                 </div>
+
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
                   <ExclamationCircleIcon className="w-6 h-6" />
                 </div>
@@ -245,11 +396,15 @@ export default function OfficerDashboard() {
             <div className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-xs">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-wider text-gray-400">Đã từ chối</p>
+                  <p className="text-xs font-bold uppercase tracking-wider text-gray-400">
+                    Đã từ chối
+                  </p>
+
                   <p className="text-3xl font-extrabold text-rose-600 mt-1">
                     {stats?.profileCountsByStatus?.['REJECTED'] || 0}
                   </p>
                 </div>
+
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-rose-50 text-rose-600">
                   <XCircleIcon className="w-6 h-6" />
                 </div>
@@ -288,6 +443,7 @@ export default function OfficerDashboard() {
 
               <div className="relative w-full md:w-72">
                 <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+
                 <input
                   type="text"
                   placeholder="Tìm kiếm sinh viên..."
@@ -313,6 +469,7 @@ export default function OfficerDashboard() {
                     <th className="px-6 py-4 text-right">Thao tác</th>
                   </tr>
                 </thead>
+
                 <tbody className="divide-y divide-gray-100 bg-white">
                   {loading ? (
                     <tr>
@@ -331,22 +488,29 @@ export default function OfficerDashboard() {
                     profiles.map((p) => (
                       <tr key={p.id} className="hover:bg-slate-50/60 transition">
                         <td className="px-6 py-4">
-                          <p className="font-bold text-gray-900">{p.student?.fullName || p.student?.email}</p>
-                          <p className="text-xs text-gray-400">{p.student?.email}</p>
-                          <p className="text-[11px] text-gray-400 mt-0.5">
-                            Nộp: {new Date(p.updatedAt).toLocaleDateString('vi-VN')}
+                          <p className="font-bold text-gray-900">
+                            {p.student?.fullName || 'Chưa cập nhật'}
+                          </p>
+
+                          <p className="text-xs text-gray-400">
+                            MSSV: {p.student?.studentCode || 'Chưa cập nhật'}
                           </p>
                         </td>
 
                         <td className="px-6 py-4">
-                          <p className="font-bold text-gray-800">{p.enterprise?.name || 'Tự liên hệ'}</p>
-                          <p className="text-xs text-[#8093FF] font-medium">{p.position || p.title}</p>
+                          <p className="font-bold text-gray-800">
+                            {p.enterprise?.name || 'Tự liên hệ'}
+                          </p>
+
+                          <p className="text-xs text-[#8093FF] font-medium">
+                            {p.position || p.title}
+                          </p>
                         </td>
 
                         <td className="px-6 py-4">
-                          {p.supervisor ? (
+                          {p.supervisor?.fullName ? (
                             <span className="font-semibold text-gray-900 text-xs">
-                              {p.supervisor.fullName || p.supervisor.email}
+                              {p.supervisor.fullName}
                             </span>
                           ) : (
                             <span className="text-xs text-gray-400 italic">Chưa phân công</span>
@@ -358,38 +522,47 @@ export default function OfficerDashboard() {
                         </td>
 
                         <td className="px-6 py-4 text-right">
-                          {p.status === 'SUBMITTED' ? (
-                            <div className="flex items-center justify-end gap-2">
-                              <button
-                                onClick={() => handleOpenReviewModal(p, 'APPROVED')}
-                                title="Phê duyệt & Phân công GVHD"
-                                className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-xs font-bold transition"
-                              >
-                                <CheckIcon className="w-3.5 h-3.5" />
-                                <span>Duyệt</span>
-                              </button>
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => handleViewDetail(p.id)}
+                              title="Xem chi tiết hồ sơ"
+                              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 text-xs font-bold transition"
+                            >
+                              <EyeIcon className="w-3.5 h-3.5" />
+                              <span>Chi tiết</span>
+                            </button>
 
-                              <button
-                                onClick={() => handleOpenReviewModal(p, 'NEEDS_REVISION')}
-                                title="Yêu cầu sửa đổi"
-                                className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-amber-50 text-amber-700 hover:bg-amber-100 text-xs font-bold transition"
-                              >
-                                <PencilSquareIcon className="w-3.5 h-3.5" />
-                                <span>Sửa</span>
-                              </button>
+                            {p.status === 'SUBMITTED' ? (
+                              <>
+                                <button
+                                  onClick={() => handleOpenReviewModal(p, 'APPROVED')}
+                                  title="Phê duyệt & Phân công GVHD"
+                                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-xs font-bold transition"
+                                >
+                                  <CheckIcon className="w-3.5 h-3.5" />
+                                  <span>Duyệt</span>
+                                </button>
 
-                              <button
-                                onClick={() => handleOpenReviewModal(p, 'REJECTED')}
-                                title="Từ chối hồ sơ"
-                                className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 text-xs font-bold transition"
-                              >
-                                <XMarkIcon className="w-3.5 h-3.5" />
-                                <span>Từ chối</span>
-                              </button>
-                            </div>
-                          ) : (
-                            <span className="text-xs text-gray-400">Đã xử lý</span>
-                          )}
+                                <button
+                                  onClick={() => handleOpenReviewModal(p, 'NEEDS_REVISION')}
+                                  title="Yêu cầu sửa đổi"
+                                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-amber-50 text-amber-700 hover:bg-amber-100 text-xs font-bold transition"
+                                >
+                                  <PencilSquareIcon className="w-3.5 h-3.5" />
+                                  <span>Sửa</span>
+                                </button>
+
+                                <button
+                                  onClick={() => handleOpenReviewModal(p, 'REJECTED')}
+                                  title="Từ chối hồ sơ"
+                                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 text-xs font-bold transition"
+                                >
+                                  <XMarkIcon className="w-3.5 h-3.5" />
+                                  <span>Từ chối</span>
+                                </button>
+                              </>
+                            ) : null}
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -403,6 +576,7 @@ export default function OfficerDashboard() {
               <span>
                 Hiển thị {profiles.length} / {totalCount} hồ sơ
               </span>
+
               <div className="flex gap-1.5">
                 <button
                   disabled={page <= 1}
@@ -411,9 +585,11 @@ export default function OfficerDashboard() {
                 >
                   Trước
                 </button>
+
                 <span className="px-3 py-1.5 font-bold text-gray-900">
                   Trang {page} / {totalPages || 1}
                 </span>
+
                 <button
                   disabled={page >= totalPages}
                   onClick={() => setPage(page + 1)}
@@ -425,6 +601,278 @@ export default function OfficerDashboard() {
             </div>
           </div>
 
+          {/* Modal Chi tiết hồ sơ */}
+          <Modal
+            isOpen={detailOpen}
+            onClose={() => {
+              setDetailOpen(false);
+              setDetailProfile(null);
+              setDetailError(null);
+            }}
+            title="Chi tiết hồ sơ thực tập"
+          >
+            <div className="max-h-[70vh] overflow-y-auto space-y-5 pr-1">
+              {detailLoading ? (
+                <div className="py-12 text-center text-sm text-gray-500">
+                  <div className="h-7 w-7 border-2 border-[#8093FF] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                  Đang tải thông tin hồ sơ...
+                </div>
+              ) : detailError ? (
+                <div className="rounded-xl border border-rose-100 bg-rose-50 p-4 text-sm text-rose-700">
+                  {detailError}
+                </div>
+              ) : detailProfile ? (
+                <>
+                  {/* Thông tin chung */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs text-gray-400 font-bold uppercase">Mã hồ sơ</p>
+                      <p className="text-sm font-bold text-gray-900 break-all">
+                        {detailProfile.id}
+                      </p>
+                    </div>
+
+                    <Badge status={detailProfile.status} />
+                  </div>
+
+                  {/* Sinh viên */}
+                  <section className="rounded-2xl border border-gray-200 p-4 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <UserIcon className="w-5 h-5 text-[#8093FF]" />
+                      <h3 className="font-bold text-gray-900">Thông tin sinh viên</h3>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <p className="text-xs text-gray-400">Họ và tên</p>
+                        <p className="font-semibold text-gray-800">
+                          {detailProfile.student.fullName || 'Chưa cập nhật'}
+                        </p>
+                      </div>
+
+                      <div>
+                        <p className="text-xs text-gray-400">Mã sinh viên</p>
+                        <p className="font-semibold text-gray-800">
+                          {detailProfile.student.studentCode || 'Chưa cập nhật'}
+                        </p>
+                      </div>
+
+                      <div className="sm:col-span-2">
+                        <p className="text-xs text-gray-400">Chuyên ngành</p>
+                        <p className="font-semibold text-gray-800">
+                          {detailProfile.student.major || 'Chưa cập nhật'}
+                        </p>
+                      </div>
+                    </div>
+                  </section>
+
+                  {/* Thông tin thực tập */}
+                  <section className="rounded-2xl border border-gray-200 p-4 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <ClipboardDocumentListIcon className="w-5 h-5 text-[#8093FF]" />
+                      <h3 className="font-bold text-gray-900">Thông tin thực tập</h3>
+                    </div>
+
+                    <div className="space-y-3 text-sm">
+                      <div>
+                        <p className="text-xs text-gray-400">Tên đề tài</p>
+                        <p className="font-semibold text-gray-800">
+                          {detailProfile.title || 'Chưa cập nhật'}
+                        </p>
+                      </div>
+
+                      <div>
+                        <p className="text-xs text-gray-400">Vị trí thực tập</p>
+                        <p className="font-semibold text-gray-800">
+                          {detailProfile.position || 'Chưa cập nhật'}
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <p className="text-xs text-gray-400">Ngày bắt đầu</p>
+                          <p className="font-semibold text-gray-800">
+                            {formatDate(detailProfile.internshipStartAt)}
+                          </p>
+                        </div>
+
+                        <div>
+                          <p className="text-xs text-gray-400">Ngày kết thúc</p>
+                          <p className="font-semibold text-gray-800">
+                            {formatDate(detailProfile.internshipEndAt)}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div>
+                        <p className="text-xs text-gray-400">Mô tả công việc</p>
+                        <p className="mt-1 rounded-xl bg-gray-50 p-3 text-gray-700 whitespace-pre-wrap leading-relaxed">
+                          {detailProfile.description || 'Không có mô tả'}
+                        </p>
+                      </div>
+                    </div>
+                  </section>
+
+                  {/* Doanh nghiệp */}
+                  <section className="rounded-2xl border border-gray-200 p-4 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <BuildingOffice2Icon className="w-5 h-5 text-[#8093FF]" />
+                      <h3 className="font-bold text-gray-900">Thông tin doanh nghiệp</h3>
+                    </div>
+
+                    {detailProfile.enterprise ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                        <div className="sm:col-span-2">
+                          <p className="text-xs text-gray-400">Tên doanh nghiệp</p>
+                          <p className="font-semibold text-gray-800">
+                            {detailProfile.enterprise.name}
+                          </p>
+                        </div>
+
+                        <div className="sm:col-span-2">
+                          <p className="text-xs text-gray-400">Địa chỉ</p>
+                          <p className="font-semibold text-gray-800">
+                            {detailProfile.enterprise.address || 'Chưa cập nhật'}
+                          </p>
+                        </div>
+
+                        <div>
+                          <p className="text-xs text-gray-400">Số điện thoại</p>
+                          <p className="font-semibold text-gray-800">
+                            {detailProfile.enterprise.phone || 'Chưa cập nhật'}
+                          </p>
+                        </div>
+
+                        <div>
+                          <p className="text-xs text-gray-400">Website</p>
+                          {detailProfile.enterprise.website ? (
+                            <a
+                              href={detailProfile.enterprise.website}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="font-semibold text-blue-600 hover:underline break-all"
+                            >
+                              {detailProfile.enterprise.website}
+                            </a>
+                          ) : (
+                            <p className="font-semibold text-gray-800">Chưa cập nhật</p>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-400 italic">
+                        Hồ sơ chưa liên kết doanh nghiệp.
+                      </p>
+                    )}
+                  </section>
+
+                  {/* Giảng viên hướng dẫn */}
+                  <section className="rounded-2xl border border-gray-200 p-4 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <AcademicCapIcon className="w-5 h-5 text-[#8093FF]" />
+                      <h3 className="font-bold text-gray-900">Giảng viên hướng dẫn</h3>
+                    </div>
+
+                    {detailProfile.supervisor ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                        <div>
+                          <p className="text-xs text-gray-400">Họ và tên</p>
+                          <p className="font-semibold text-gray-800">
+                            {detailProfile.supervisor.fullName}
+                          </p>
+                        </div>
+
+                        <div>
+                          <p className="text-xs text-gray-400">Khoa / Bộ môn</p>
+                          <p className="font-semibold text-gray-800">
+                            {detailProfile.supervisor.department || 'Chưa cập nhật'}
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-400 italic">
+                        Chưa được phân công giảng viên hướng dẫn.
+                      </p>
+                    )}
+                  </section>
+
+                  {/* Đợt thực tập */}
+                  <section className="rounded-2xl border border-gray-200 p-4 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <CalendarDaysIcon className="w-5 h-5 text-[#8093FF]" />
+                      <h3 className="font-bold text-gray-900">Đợt thực tập</h3>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                      <div className="sm:col-span-2">
+                        <p className="text-xs text-gray-400">Tên đợt</p>
+                        <p className="font-semibold text-gray-800">
+                          {detailProfile.period?.name || 'Chưa cập nhật'}
+                        </p>
+                      </div>
+
+                      <div>
+                        <p className="text-xs text-gray-400">Ngày bắt đầu đợt</p>
+                        <p className="font-semibold text-gray-800">
+                          {formatDate(detailProfile.period?.startDate)}
+                        </p>
+                      </div>
+
+                      <div>
+                        <p className="text-xs text-gray-400">Ngày kết thúc đợt</p>
+                        <p className="font-semibold text-gray-800">
+                          {formatDate(detailProfile.period?.endDate)}
+                        </p>
+                      </div>
+                    </div>
+                  </section>
+
+                  {/* Lịch sử trạng thái */}
+                  <section className="rounded-2xl border border-gray-200 p-4 space-y-4">
+                    <div className="flex items-center gap-2">
+                      <ClockIcon className="w-5 h-5 text-[#8093FF]" />
+                      <h3 className="font-bold text-gray-900">Lịch sử xét duyệt</h3>
+                    </div>
+
+                    {detailProfile.statusHistory?.length ? (
+                      <div className="space-y-4">
+                        {detailProfile.statusHistory.map((history) => (
+                          <div
+                            key={history.id}
+                            className="relative border-l-2 border-gray-200 pl-4 pb-1"
+                          >
+                            <div className="absolute -left-[5px] top-1 h-2 w-2 rounded-full bg-[#8093FF]" />
+
+                            <p className="text-sm font-bold text-gray-800">
+                              {history.fromStatus
+                                ? statusLabels[history.fromStatus] || history.fromStatus
+                                : 'Khởi tạo'}{' '}
+                              → {statusLabels[history.toStatus] || history.toStatus}
+                            </p>
+
+                            <p className="mt-1 text-xs text-gray-400">
+                              {formatDateTime(history.createdAt)}
+                            </p>
+
+                            {history.reason && (
+                              <div className="mt-2 rounded-lg bg-gray-50 p-3 text-sm text-gray-600">
+                                <span className="font-semibold">Lý do:</span> {history.reason}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-400 italic">
+                        Chưa có lịch sử thay đổi trạng thái.
+                      </p>
+                    )}
+                  </section>
+                </>
+              ) : null}
+            </div>
+          </Modal>
+
           {/* Modal Xét duyệt */}
           <Modal
             isOpen={!!selectedProfile}
@@ -433,18 +881,22 @@ export default function OfficerDashboard() {
               reviewAction === 'APPROVED'
                 ? 'Phê duyệt hồ sơ & Phân công Giảng viên'
                 : reviewAction === 'NEEDS_REVISION'
-                ? 'Yêu cầu sinh viên sửa đổi hồ sơ'
-                : 'Từ chối hồ sơ thực tập'
+                  ? 'Yêu cầu sinh viên sửa đổi hồ sơ'
+                  : 'Từ chối hồ sơ thực tập'
             }
           >
             <form onSubmit={handleReviewSubmit} className="space-y-4">
               <div className="bg-gray-50 p-3.5 rounded-xl text-xs space-y-1">
                 <p>
-                  <strong>Sinh viên:</strong> {selectedProfile?.student?.fullName || selectedProfile?.student?.email}
+                  <strong>Sinh viên:</strong>{' '}
+                  {selectedProfile?.student?.fullName || 'Chưa cập nhật'}
                 </p>
+
                 <p>
-                  <strong>Doanh nghiệp:</strong> {selectedProfile?.enterprise?.name || 'Chưa liên kết'}
+                  <strong>Doanh nghiệp:</strong>{' '}
+                  {selectedProfile?.enterprise?.name || 'Chưa liên kết'}
                 </p>
+
                 <p>
                   <strong>Vị trí:</strong> {selectedProfile?.position || selectedProfile?.title}
                 </p>
@@ -461,6 +913,7 @@ export default function OfficerDashboard() {
                   <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
                     Chọn Giảng viên hướng dẫn <span className="text-red-500">*</span>
                   </label>
+
                   <select
                     value={supervisorId}
                     onChange={(e) => setSupervisorId(e.target.value)}
@@ -468,12 +921,20 @@ export default function OfficerDashboard() {
                     required
                   >
                     <option value="">-- Chọn Giảng viên phụ trách --</option>
+
                     {supervisors.map((s) => (
                       <option key={s.id} value={s.id}>
-                        {s.fullName || s.email} {s.department ? `(${s.department})` : ''}
+                        {s.fullName || s.email}
+                        {s.department ? ` (${s.department})` : ''}
                       </option>
                     ))}
                   </select>
+
+                  {supervisors.length === 0 && (
+                    <p className="mt-2 text-xs text-rose-600">
+                      Không có danh sách giảng viên. Vui lòng kiểm tra API /users?role=SUPERVISOR.
+                    </p>
+                  )}
                 </div>
               ) : (
                 <div>
@@ -481,6 +942,7 @@ export default function OfficerDashboard() {
                     Lý do {reviewAction === 'NEEDS_REVISION' ? 'yêu cầu sửa đổi' : 'từ chối'}{' '}
                     <span className="text-red-500">*</span>
                   </label>
+
                   <textarea
                     rows={4}
                     value={reason}
@@ -500,6 +962,7 @@ export default function OfficerDashboard() {
                 >
                   Hủy
                 </button>
+
                 <button
                   type="submit"
                   disabled={submitting}
@@ -507,8 +970,8 @@ export default function OfficerDashboard() {
                     reviewAction === 'APPROVED'
                       ? 'bg-emerald-600 hover:bg-emerald-700'
                       : reviewAction === 'NEEDS_REVISION'
-                      ? 'bg-amber-600 hover:bg-amber-700'
-                      : 'bg-rose-600 hover:bg-rose-700'
+                        ? 'bg-amber-600 hover:bg-amber-700'
+                        : 'bg-rose-600 hover:bg-rose-700'
                   }`}
                 >
                   {submitting ? 'Đang lưu...' : 'Xác nhận'}

@@ -21,6 +21,7 @@ describe('InternshipsService', () => {
       getStudentDashboard: jest.fn(),
       hasStatusHistory: jest.fn(),
       removeProfile: jest.fn(),
+      findStudentProfileInPeriod: jest.fn().mockResolvedValue(null),
     } as unknown as InternshipsRepository;
     return {
       service: new InternshipsService(

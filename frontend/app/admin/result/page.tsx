@@ -55,7 +55,7 @@ export default function ResultSummaryPage() {
       // 1. Lấy danh sách toàn bộ hồ sơ thực tập
       const profilesRes = await apiClient.get<PaginatedResponse<InternshipProfile>>(
         '/internships/profiles',
-        { page: 1, limit: 100 }
+        { page: 1, limit: 100 },
       );
       const profiles = profilesRes.items || [];
 
@@ -148,7 +148,9 @@ export default function ResultSummaryPage() {
         reason: adjustReason.trim(),
       });
 
-      setSuccessMsg(`Đã điều chỉnh điểm của sinh viên ${adjustTarget.profile.student?.fullName || ''} thành ${newScore}`);
+      setSuccessMsg(
+        `Đã điều chỉnh điểm của sinh viên ${adjustTarget.profile.student?.fullName || ''} thành ${newScore}`,
+      );
       setAdjustTarget(null);
       await fetchResults();
     } catch (err: unknown) {
@@ -159,7 +161,9 @@ export default function ResultSummaryPage() {
   };
 
   const handleFinalize = async (profileId: string) => {
-    const confirm = window.confirm('Bạn có chắc chắn muốn chốt điểm cho hồ sơ này? Sau khi chốt điểm, điểm số sẽ được cố định.');
+    const confirm = window.confirm(
+      'Bạn có chắc chắn muốn chốt điểm cho hồ sơ này? Sau khi chốt điểm, điểm số sẽ được cố định.',
+    );
     if (!confirm) return;
 
     try {
@@ -175,7 +179,9 @@ export default function ResultSummaryPage() {
   };
 
   const handlePublish = async (profileId: string) => {
-    const confirm = window.confirm('Bạn có chắc chắn muốn công bố điểm cho sinh viên này? Sinh viên sẽ xem được kết quả chính thức.');
+    const confirm = window.confirm(
+      'Bạn có chắc chắn muốn công bố điểm cho sinh viên này? Sinh viên sẽ xem được kết quả chính thức.',
+    );
     if (!confirm) return;
 
     try {
@@ -259,7 +265,9 @@ export default function ResultSummaryPage() {
                 disabled={loading}
                 className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-700 hover:bg-gray-50 transition shadow-xs"
               >
-                <ArrowPathIcon className={`w-4 h-4 text-gray-500 ${loading ? 'animate-spin' : ''}`} />
+                <ArrowPathIcon
+                  className={`w-4 h-4 text-gray-500 ${loading ? 'animate-spin' : ''}`}
+                />
                 <span>Làm mới</span>
               </button>
 
@@ -309,7 +317,9 @@ export default function ResultSummaryPage() {
             {loading ? (
               <div className="p-16 text-center">
                 <div className="h-8 w-8 border-4 border-[#8093FF] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-                <p className="text-sm font-medium text-gray-500">Đang tổng hợp kết quả thực tập...</p>
+                <p className="text-sm font-medium text-gray-500">
+                  Đang tổng hợp kết quả thực tập...
+                </p>
               </div>
             ) : filteredRows.length === 0 ? (
               <div className="p-16 text-center text-gray-500 text-sm">
@@ -322,9 +332,9 @@ export default function ResultSummaryPage() {
                     <tr>
                       <th className="px-6 py-4">Sinh viên</th>
                       <th className="px-6 py-4">Doanh nghiệp</th>
-                      <th className="px-4 py-4 text-center">Điểm DN (30%)</th>
-                      <th className="px-4 py-4 text-center">Điểm QT (20%)</th>
-                      <th className="px-4 py-4 text-center">Điểm BC (50%)</th>
+                      <th className="px-4 py-4 text-center">Điểm DN (40%)</th>
+                      <th className="px-4 py-4 text-center">Điểm QT (30%)</th>
+                      <th className="px-4 py-4 text-center">Điểm BC (30%)</th>
                       <th className="px-4 py-4 text-center text-[#8093FF]">Tổng kết</th>
                       <th className="px-6 py-4 text-center">Trạng thái</th>
                       <th className="px-6 py-4 text-right">Thao tác Cán bộ</th>
@@ -340,13 +350,19 @@ export default function ResultSummaryPage() {
                       return (
                         <tr key={r.profile.id} className="hover:bg-gray-50/50 transition">
                           <td className="px-6 py-4">
-                            <p className="font-bold text-gray-900">{r.profile.student?.fullName || 'Sinh viên'}</p>
+                            <p className="font-bold text-gray-900">
+                              {r.profile.student?.fullName || 'Sinh viên'}
+                            </p>
                             <p className="text-xs text-gray-400">{r.profile.student?.email}</p>
                           </td>
 
                           <td className="px-6 py-4">
-                            <p className="font-semibold text-gray-800 text-xs">{r.profile.enterprise?.name || 'Tự liên hệ'}</p>
-                            <p className="text-[11px] text-[#8093FF]">{r.profile.position || r.profile.title}</p>
+                            <p className="font-semibold text-gray-800 text-xs">
+                              {r.profile.enterprise?.name || 'Tự liên hệ'}
+                            </p>
+                            <p className="text-[11px] text-[#8093FF]">
+                              {r.profile.position || r.profile.title}
+                            </p>
                           </td>
 
                           <td className="px-4 py-4 text-center font-bold text-gray-800">
@@ -483,7 +499,8 @@ export default function ResultSummaryPage() {
             {adjustTarget && (
               <form onSubmit={handleConfirmAdjust} className="space-y-4">
                 <p className="text-xs text-gray-500">
-                  Điểm tính toán hiện tại: <strong>{adjustTarget.calculatedTotalScore || adjustTarget.totalScore}</strong>.
+                  Điểm tính toán hiện tại:{' '}
+                  <strong>{adjustTarget.calculatedTotalScore || adjustTarget.totalScore}</strong>.
                   Mọi thao tác điều chỉnh điểm đều được hệ thống lưu vào lịch sử audit log.
                 </p>
 

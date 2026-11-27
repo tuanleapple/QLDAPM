@@ -148,7 +148,12 @@ export class InternshipPeriod {
 }
 
 @Entity('internship_profiles')
-@Unique(['studentId', 'periodId'])
+// @Unique(['studentId', 'periodId'])
+
+@Index('IDX_profile_student_period_active', ['studentId', 'periodId'], {
+  unique: true,
+  where: "status <> 'REJECTED'",
+})
 export class InternshipProfile {
   @PrimaryGeneratedColumn('uuid') id!: string;
   @Column({ name: 'student_id', type: 'uuid' }) studentId!: string;

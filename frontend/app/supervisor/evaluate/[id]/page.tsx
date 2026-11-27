@@ -1,8 +1,9 @@
-// frontend/app/supervisor/evaluate/[id]/page.tsx
 'use client';
 
-import React, { use, useEffect, useState, useCallback } from 'react';
+import React, { Suspense, useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
+import { useParams } from 'next/navigation';
+
 import {
   ArrowLeftIcon,
   UserCircleIcon,
@@ -14,7 +15,9 @@ import {
   BookmarkSquareIcon,
   PaperAirplaneIcon,
 } from '@heroicons/react/24/outline';
+
 import { apiClient } from '@/lib/api-client';
+
 import {
   Criterion,
   EvaluationForm,
@@ -23,29 +26,28 @@ import {
   ReportVersion,
 } from '@/types/api';
 
-interface PageProps {
-  params: Promise<{ id: string }>;
-}
-
-export default function SupervisorEvaluationPage({ params }: PageProps) {
-  const resolvedParams = use(params);
-  const profileId = resolvedParams.id;
+function SupervisorEvaluationContent() {
+  const params = useParams();
+  const profileId = (params?.id as string) || '';
 
   const [profile, setProfile] = useState<InternshipProfile | null>(null);
   const [reports, setReports] = useState<ReportVersion[]>([]);
   const [form, setForm] = useState<EvaluationForm | null>(null);
   const [criteria, setCriteria] = useState<Criterion[]>([]);
 
-  // State lưu điểm và nhận xét cho từng criterion: { [criteriaId]: { score: number, comment: string } }
+  // State lưu điểm và nhận xét cho từng criterion
   const [scores, setScores] = useState<Record<string, { score: number; comment: string }>>({});
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   const fetchInitialData = useCallback(async () => {
+    if (!profileId) return;
+
     try {
       setLoading(true);
       setError(null);
@@ -57,37 +59,48 @@ export default function SupervisorEvaluationPage({ params }: PageProps) {
       // 2. Lấy danh sách báo cáo sinh viên đã nộp
       const reportsRes = await apiClient.get<PaginatedResponse<ReportVersion>>(
         `/reports/profiles/${profileId}/versions`,
-        { page: 1, limit: 10 }
+        {
+          page: 1,
+          limit: 10,
+        },
       );
+
       const reportList = reportsRes.items || [];
       setReports(reportList);
 
       // 3. Khởi tạo hoặc lấy Form đánh giá của Giảng viên hướng dẫn
       const formRes = await apiClient.post<EvaluationForm>(
-        `/evaluations/profiles/${profileId}/forms/SUPERVISOR`
+        `/evaluations/profiles/${profileId}/forms/SUPERVISOR`,
       );
       setForm(formRes);
 
       // 4. Lấy danh sách tiêu chí đánh giá của kỳ thực tập
       const critRes = await apiClient.get<PaginatedResponse<Criterion>>(
         `/evaluations/periods/${profRes.periodId}/criteria`,
-        { formType: 'SUPERVISOR', limit: 50 }
+        { formType: 'SUPERVISOR', limit: 50 },
       );
+
       const critList = critRes.items || [];
       setCriteria(critList);
 
-      // Điền sẵn điểm từ form details (nếu đã lưu nháp trước đó)
+      // Điền sẵn điểm từ form details nếu đã lưu nháp trước đó
       const initialScores: Record<string, { score: number; comment: string }> = {};
+
       critList.forEach((c) => {
-        const found = formRes.details?.find((d) => (d.criterionId || (d as unknown as { criteriaId: string }).criteriaId) === c.id);
+        const found = formRes.details?.find(
+          (d) => (d.criterionId || (d as unknown as { criteriaId: string }).criteriaId) === c.id,
+        );
+
         initialScores[c.id] = {
           score: found ? Number(found.score) : 0,
           comment: found?.comment || '',
         };
       });
+
       setScores(initialScores);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Lỗi khi tải thông tin đánh giá';
+
       setError(msg);
     } finally {
       setLoading(false);
@@ -120,6 +133,25 @@ export default function SupervisorEvaluationPage({ params }: PageProps) {
 
   const latestReport = reports[0] || null;
 
+  // Tải báo cáo thực tập
+  const handleDownload = async () => {
+    if (!latestReport) return;
+
+    try {
+      setDownloading(true);
+      setError(null);
+      setSuccessMsg(null);
+
+      await apiClient.download(`/reports/${latestReport.id}/download`, latestReport.originalName);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Không thể tải file báo cáo';
+
+      setError(msg);
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   const buildPayload = () => {
     const details = Object.entries(scores).map(([criteriaId, val]) => ({
       criteriaId,
@@ -135,13 +167,19 @@ export default function SupervisorEvaluationPage({ params }: PageProps) {
 
   const handleSaveDraft = async () => {
     if (!form) return;
+
     try {
       setSaving(true);
       setError(null);
       setSuccessMsg(null);
 
       const payload = buildPayload();
-      const updated = await apiClient.patch<EvaluationForm>(`/evaluations/forms/${form.id}`, payload);
+
+      const updated = await apiClient.patch<EvaluationForm>(
+        `/evaluations/forms/${form.id}`,
+        payload,
+      );
+
       setForm(updated);
       setSuccessMsg('Đã lưu bản nháp điểm đánh giá thành công!');
     } catch (err: unknown) {
@@ -153,18 +191,21 @@ export default function SupervisorEvaluationPage({ params }: PageProps) {
 
   const handleSubmit = async () => {
     if (!form) return;
+
     if (criteria.length === 0) {
       setError('Không có tiêu chí đánh giá cho đợt thực tập này');
       return;
     }
+
     if (!latestReport) {
       setError('Sinh viên chưa nộp tài liệu báo cáo thực tập cuối kỳ, không thể nộp chính thức');
       return;
     }
 
     const confirmSubmit = window.confirm(
-      'Bạn có chắc chắn muốn nộp điểm chính thức? Sau khi nộp, phiếu đánh giá sẽ bị khóa và không thể chỉnh sửa.'
+      'Bạn có chắc chắn muốn nộp điểm chính thức? Sau khi nộp, phiếu đánh giá sẽ bị khóa và không thể chỉnh sửa.',
     );
+
     if (!confirmSubmit) return;
 
     try {
@@ -173,7 +214,12 @@ export default function SupervisorEvaluationPage({ params }: PageProps) {
       setSuccessMsg(null);
 
       const payload = buildPayload();
-      const submitted = await apiClient.post<EvaluationForm>(`/evaluations/forms/${form.id}/submit`, payload);
+
+      const submitted = await apiClient.post<EvaluationForm>(
+        `/evaluations/forms/${form.id}/submit`,
+        payload,
+      );
+
       setForm(submitted);
       setSuccessMsg('Đã nộp điểm đánh giá chính thức thành công!');
     } catch (err: unknown) {
@@ -187,6 +233,7 @@ export default function SupervisorEvaluationPage({ params }: PageProps) {
 
   // Phân chia tiêu chí thành 2 nhóm: Quá trình (PROCESS) và Báo cáo (REPORT)
   const processCriteria = criteria.filter((c) => c.category === 'PROCESS');
+
   const reportCriteria = criteria.filter((c) => c.category === 'REPORT');
 
   return (
@@ -201,8 +248,12 @@ export default function SupervisorEvaluationPage({ params }: PageProps) {
             >
               <ArrowLeftIcon className="h-5 w-5" />
             </Link>
+
             <div>
-              <h1 className="text-2xl font-extrabold text-gray-900">Phiếu đánh giá kết quả thực tập</h1>
+              <h1 className="text-2xl font-extrabold text-gray-900">
+                Phiếu đánh giá kết quả thực tập
+              </h1>
+
               <p className="text-sm text-gray-500 mt-0.5">
                 Đánh giá quá trình và báo cáo thực tập theo tiêu chí Rubric
               </p>
@@ -255,25 +306,41 @@ export default function SupervisorEvaluationPage({ params }: PageProps) {
 
                 <div className="space-y-3.5 text-sm">
                   <div>
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Họ và tên</p>
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                      Họ và tên
+                    </p>
+
                     <p className="font-bold text-gray-900 text-base mt-0.5">
                       {profile?.student?.fullName || 'Sinh viên'}
                     </p>
                   </div>
 
                   <div>
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Email</p>
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                      Email
+                    </p>
+
                     <p className="font-medium text-gray-700 mt-0.5">{profile?.student?.email}</p>
                   </div>
 
                   <div>
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Doanh nghiệp thực tập</p>
-                    <p className="font-semibold text-gray-900 mt-0.5">{profile?.enterprise?.name || 'Tự liên hệ'}</p>
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                      Doanh nghiệp thực tập
+                    </p>
+
+                    <p className="font-semibold text-gray-900 mt-0.5">
+                      {profile?.enterprise?.name || 'Tự liên hệ'}
+                    </p>
                   </div>
 
                   <div>
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Vị trí / Đề tài</p>
-                    <p className="font-medium text-[#8093FF] mt-0.5">{profile?.position || profile?.title}</p>
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                      Vị trí / Đề tài
+                    </p>
+
+                    <p className="font-medium text-[#8093FF] mt-0.5">
+                      {profile?.position || profile?.title}
+                    </p>
                   </div>
 
                   <hr className="border-gray-100 my-4" />
@@ -288,21 +355,27 @@ export default function SupervisorEvaluationPage({ params }: PageProps) {
                       <div className="space-y-2">
                         <div className="flex items-center gap-2 p-3 rounded-xl bg-gray-50 border border-gray-200">
                           <DocumentTextIcon className="w-7 h-7 text-emerald-600 flex-shrink-0" />
+
                           <div className="overflow-hidden">
-                            <p className="text-xs font-bold text-gray-900 truncate">{latestReport.originalName}</p>
+                            <p className="text-xs font-bold text-gray-900 truncate">
+                              {latestReport.originalName}
+                            </p>
+
                             <p className="text-[11px] text-gray-400">
-                              Phiên bản {latestReport.version} • {new Date(latestReport.submittedAt).toLocaleDateString('vi-VN')}
+                              Phiên bản {latestReport.version} •{' '}
+                              {new Date(latestReport.submittedAt).toLocaleDateString('vi-VN')}
                             </p>
                           </div>
                         </div>
 
                         <button
                           type="button"
-                          onClick={() => apiClient.download(`/reports/${latestReport.id}/content`, latestReport.originalName)}
-                          className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#8093FF] bg-[#F0F2FF] py-2.5 text-xs font-bold text-[#8093FF] transition hover:bg-[#E6EAFB]"
+                          onClick={handleDownload}
+                          disabled={downloading}
+                          className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#8093FF] bg-[#F0F2FF] py-2.5 text-xs font-bold text-[#8093FF] transition hover:bg-[#E6EAFB] disabled:opacity-50"
                         >
                           <ArrowDownTrayIcon className="h-4 w-4" />
-                          Tải xuống báo cáo
+                          {downloading ? 'Đang tải xuống...' : 'Tải xuống báo cáo'}
                         </button>
                       </div>
                     ) : (
@@ -340,16 +413,26 @@ export default function SupervisorEvaluationPage({ params }: PageProps) {
 
                         <div className="space-y-5">
                           {processCriteria.map((c) => (
-                            <div key={c.id} className="p-4 rounded-2xl border border-gray-200 bg-white space-y-3">
+                            <div
+                              key={c.id}
+                              className="p-4 rounded-2xl border border-gray-200 bg-white space-y-3"
+                            >
                               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                                 <div>
                                   <label className="text-sm font-bold text-gray-900">
                                     {c.name} ({c.code})
                                   </label>
-                                  {c.description && <p className="text-xs text-gray-500 mt-0.5">{c.description}</p>}
+
+                                  {c.description && (
+                                    <p className="text-xs text-gray-500 mt-0.5">{c.description}</p>
+                                  )}
                                 </div>
+
                                 <div className="flex items-center gap-2 self-end sm:self-auto">
-                                  <span className="text-xs font-semibold text-gray-500">Điểm (0-10):</span>
+                                  <span className="text-xs font-semibold text-gray-500">
+                                    Điểm (0-10):
+                                  </span>
+
                                   <input
                                     type="number"
                                     min="0"
@@ -357,7 +440,9 @@ export default function SupervisorEvaluationPage({ params }: PageProps) {
                                     step="0.1"
                                     disabled={isFormLocked}
                                     value={scores[c.id]?.score ?? 0}
-                                    onChange={(e) => handleScoreChange(c.id, parseFloat(e.target.value) || 0)}
+                                    onChange={(e) =>
+                                      handleScoreChange(c.id, parseFloat(e.target.value) || 0)
+                                    }
                                     className="w-24 rounded-xl border border-gray-300 px-3 py-2 text-center text-sm font-bold text-gray-900 focus:border-[#8093FF] focus:outline-none disabled:bg-gray-100"
                                   />
                                 </div>
@@ -386,16 +471,26 @@ export default function SupervisorEvaluationPage({ params }: PageProps) {
 
                         <div className="space-y-5">
                           {reportCriteria.map((c) => (
-                            <div key={c.id} className="p-4 rounded-2xl border border-gray-200 bg-white space-y-3">
+                            <div
+                              key={c.id}
+                              className="p-4 rounded-2xl border border-gray-200 bg-white space-y-3"
+                            >
                               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                                 <div>
                                   <label className="text-sm font-bold text-gray-900">
                                     {c.name} ({c.code})
                                   </label>
-                                  {c.description && <p className="text-xs text-gray-500 mt-0.5">{c.description}</p>}
+
+                                  {c.description && (
+                                    <p className="text-xs text-gray-500 mt-0.5">{c.description}</p>
+                                  )}
                                 </div>
+
                                 <div className="flex items-center gap-2 self-end sm:self-auto">
-                                  <span className="text-xs font-semibold text-gray-500">Điểm (0-10):</span>
+                                  <span className="text-xs font-semibold text-gray-500">
+                                    Điểm (0-10):
+                                  </span>
+
                                   <input
                                     type="number"
                                     min="0"
@@ -403,7 +498,9 @@ export default function SupervisorEvaluationPage({ params }: PageProps) {
                                     step="0.1"
                                     disabled={isFormLocked}
                                     value={scores[c.id]?.score ?? 0}
-                                    onChange={(e) => handleScoreChange(c.id, parseFloat(e.target.value) || 0)}
+                                    onChange={(e) =>
+                                      handleScoreChange(c.id, parseFloat(e.target.value) || 0)
+                                    }
                                     className="w-24 rounded-xl border border-gray-300 px-3 py-2 text-center text-sm font-bold text-gray-900 focus:border-[#8093FF] focus:outline-none disabled:bg-gray-100"
                                   />
                                 </div>
@@ -455,5 +552,20 @@ export default function SupervisorEvaluationPage({ params }: PageProps) {
         )}
       </div>
     </div>
+  );
+}
+
+export default function SupervisorEvaluationPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[#F8F9FA] p-12 text-center">
+          <div className="h-8 w-8 border-4 border-[#8093FF] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+          <p className="text-sm font-medium text-gray-500">Đang tải biểu mẫu đánh giá...</p>
+        </div>
+      }
+    >
+      <SupervisorEvaluationContent />
+    </Suspense>
   );
 }

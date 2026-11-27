@@ -6,19 +6,22 @@ export function middleware(request: NextRequest) {
   const token = request.cookies.get('access_token')?.value;
 
   const isAuthRoute = pathname === '/login' || pathname === '/register';
+
   const isProtectedRoute =
     pathname.startsWith('/student') ||
     pathname.startsWith('/officer') ||
     pathname.startsWith('/admin') ||
-    pathname.startsWith('/supervisor');
+    pathname.startsWith('/supervisor') ||
+    pathname.startsWith('/enterprise') ||
+    pathname.startsWith('/change-password');
 
-  // If visiting protected route without token, redirect to /login
+  // 1. Chưa có token mà cố vào route bảo vệ -> Bắt buộc về /login
   if (isProtectedRoute && !token) {
     const loginUrl = new URL('/login', request.url);
     return NextResponse.redirect(loginUrl);
   }
 
-  // If already logged in and visiting /login, redirect to /
+  // 2. Đã có token mà cố quay lại trang đăng nhập -> Về trang chủ '/' (trang chủ sẽ tự redirect theo Role)
   if (isAuthRoute && token) {
     const homeUrl = new URL('/', request.url);
     return NextResponse.redirect(homeUrl);
@@ -35,5 +38,8 @@ export const config = {
     '/officer/:path*',
     '/admin/:path*',
     '/supervisor/:path*',
+    '/enterprise/:path*',
+    '/change-password',
+    '/change-password/:path*',
   ],
 };

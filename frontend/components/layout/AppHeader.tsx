@@ -1,15 +1,26 @@
 // frontend/components/layout/AppHeader.tsx
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import {
   BellIcon,
   ArrowRightOnRectangleIcon,
   MagnifyingGlassIcon,
   KeyIcon,
+  CheckCircleIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '@/lib/auth-context';
+import { apiClient } from '@/lib/api-client';
+import { PaginatedResponse } from '@/types/api';
+
+interface NotificationItem {
+  id: string;
+  title: string;
+  content: string;
+  readAt?: string | null;
+  createdAt: string;
+}
 
 interface AppHeaderProps {
   title?: string;
@@ -17,6 +28,10 @@ interface AppHeaderProps {
 
 export function AppHeader({ title }: AppHeaderProps) {
   const { user, logout } = useAuth();
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [isOpen, setIsOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const getRoleLabel = (role?: string) => {
     switch (role) {
@@ -33,8 +48,52 @@ export function AppHeader({ title }: AppHeaderProps) {
     }
   };
 
+  const fetchNotifications = useCallback(async () => {
+    if (!user) return;
+    try {
+      setLoading(true);
+      const res = await apiClient.get<PaginatedResponse<NotificationItem>>('/notifications', {
+        page: 1,
+        limit: 10,
+      });
+      setNotifications(res.items || []);
+    } catch {
+      // Silently ignore if not ready
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    fetchNotifications();
+  }, [fetchNotifications]);
+
+  // Click outside to close
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const markAsRead = async (id: string) => {
+    try {
+      await apiClient.patch(`/notifications/${id}/read`);
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, readAt: new Date().toISOString() } : n)),
+      );
+    } catch {
+      // Ignore
+    }
+  };
+
+  const unreadCount = notifications.filter((n) => !n.readAt).length;
+
   return (
-    <header className="flex h-20 items-center justify-between border-b border-gray-200 bg-white px-8">
+    <header className="flex h-20 items-center justify-between border-b border-gray-200 bg-white px-8 relative z-30">
       <div>
         {title ? (
           <h2 className="text-xl font-bold text-gray-900">{title}</h2>
@@ -51,14 +110,72 @@ export function AppHeader({ title }: AppHeaderProps) {
       </div>
 
       <div className="flex items-center gap-6">
-        <button
-          type="button"
-          aria-label="Thông báo"
-          className="relative text-gray-500 hover:text-gray-700 p-2 rounded-lg hover:bg-gray-50 transition"
-        >
-          <BellIcon className="h-6 w-6" />
-        </button>
+        {/* Notification Bell Dropdown */}
+        <div className="relative" ref={dropdownRef}>
+          <button
+            type="button"
+            onClick={() => setIsOpen(!isOpen)}
+            aria-label="Thông báo"
+            className="relative text-gray-500 hover:text-gray-700 p-2 rounded-lg hover:bg-gray-50 transition"
+          >
+            <BellIcon className="h-6 w-6" />
+            {unreadCount > 0 && (
+              <span className="absolute top-1.5 right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[10px] font-bold text-white">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
+          </button>
 
+          {/* Popover Dropdown */}
+          {isOpen && (
+            <div className="absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl bg-white p-4 shadow-xl border border-gray-100 z-50">
+              <div className="flex items-center justify-between border-b border-gray-100 pb-3 mb-3">
+                <h3 className="text-sm font-bold text-gray-900">Thông báo</h3>
+                {unreadCount > 0 && (
+                  <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-[#8093FF]">
+                    {unreadCount} chưa đọc
+                  </span>
+                )}
+              </div>
+
+              {loading ? (
+                <div className="py-6 text-center text-xs text-gray-400">Đang tải thông báo...</div>
+              ) : notifications.length === 0 ? (
+                <div className="py-8 text-center text-xs text-gray-400">
+                  <CheckCircleIcon className="mx-auto h-8 w-8 text-gray-300 mb-2" />
+                  Bạn không có thông báo mới nào.
+                </div>
+              ) : (
+                <div className="max-h-80 overflow-y-auto space-y-2.5 pr-1 divide-y divide-gray-50">
+                  {notifications.map((n) => {
+                    const isUnread = !n.readAt;
+                    return (
+                      <div
+                        key={n.id}
+                        onClick={() => isUnread && markAsRead(n.id)}
+                        className={`p-2.5 rounded-xl transition cursor-pointer text-xs ${
+                          isUnread
+                            ? 'bg-indigo-50/50 hover:bg-indigo-50 font-medium'
+                            : 'hover:bg-gray-50 text-gray-600'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <p className="font-bold text-gray-900 text-xs">{n.title}</p>
+                          <span className="text-[10px] text-gray-400">
+                            {new Date(n.createdAt).toLocaleDateString('vi-VN')}
+                          </span>
+                        </div>
+                        <p className="text-gray-600 line-clamp-2 leading-relaxed">{n.content}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* User Info & Actions */}
         <div className="flex items-center gap-3 border-l border-gray-200 pl-6">
           <div className="h-10 w-10 overflow-hidden rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center font-bold text-[#8093FF]">
             {user?.email?.charAt(0).toUpperCase() || 'U'}

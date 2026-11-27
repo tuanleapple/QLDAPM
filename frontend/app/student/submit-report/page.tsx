@@ -1,4 +1,3 @@
-// frontend/app/student/submit-report/page.tsx
 'use client';
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
@@ -18,6 +17,11 @@ import { AppHeader } from '@/components/layout/AppHeader';
 import { apiClient } from '@/lib/api-client';
 import { InternshipProfile, PaginatedResponse, ReportVersion } from '@/types/api';
 
+interface PeriodWithDeadline {
+  reportDeadline?: string;
+  reportDeadlineAt?: string;
+}
+
 export default function SubmitReportPage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -30,30 +34,36 @@ export default function SubmitReportPage() {
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
+  // Lấy thông tin hồ sơ và lịch sử báo cáo
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Lấy hồ sơ thực tập của sinh viên hiện tại
-      const profilesRes = await apiClient.get<PaginatedResponse<InternshipProfile>>('/internships/profiles', {
-        page: 1,
-        limit: 5,
-      });
+      const profilesRes = await apiClient.get<PaginatedResponse<InternshipProfile>>(
+        '/internships/profiles',
+        {
+          page: 1,
+          limit: 5,
+        },
+      );
 
       const currentProfile = profilesRes.items?.[0] || null;
       setProfile(currentProfile);
 
       if (currentProfile) {
-        // Lấy lịch sử các phiên bản báo cáo đã nộp
         const versionsRes = await apiClient.get<PaginatedResponse<ReportVersion>>(
           `/reports/profiles/${currentProfile.id}/versions`,
-          { page: 1, limit: 20 }
+          { page: 1, limit: 20 },
         );
+
         setReportVersions(versionsRes.items || []);
+      } else {
+        setReportVersions([]);
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Không thể tải thông tin báo cáo';
+
       setError(msg);
     } finally {
       setLoading(false);
@@ -64,21 +74,26 @@ export default function SubmitReportPage() {
     fetchData();
   }, [fetchData]);
 
+  // Chọn file báo cáo
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     setError(null);
+
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Kiểm tra định dạng (PDF hoặc DOCX)
+    // Kiểm tra định dạng PDF hoặc DOCX
     const validExtensions = ['.pdf', '.docx'];
+
     const hasValidExt = validExtensions.some((ext) => file.name.toLowerCase().endsWith(ext));
+
     if (!hasValidExt) {
       setError('Hệ thống chỉ chấp nhận file định dạng PDF (.pdf) hoặc Word (.docx)');
       return;
     }
 
-    // Kiểm tra dung lượng (tối đa 10MB)
+    // Kiểm tra dung lượng tối đa 10MB
     const maxBytes = 10 * 1024 * 1024;
+
     if (file.size > maxBytes) {
       setError('Dung lượng file vượt quá giới hạn cho phép (tối đa 10 MB)');
       return;
@@ -87,11 +102,13 @@ export default function SubmitReportPage() {
     setSelectedFile(file);
   };
 
+  // Upload báo cáo
   const handleUpload = async () => {
     if (!profile) {
       setError('Bạn chưa có hồ sơ thực tập hợp lệ để nộp báo cáo');
       return;
     }
+
     if (!selectedFile) {
       setError('Vui lòng chọn file báo cáo trước khi bấm Nộp báo cáo');
       return;
@@ -105,55 +122,73 @@ export default function SubmitReportPage() {
       const formData = new FormData();
       formData.append('file', selectedFile);
 
+      // API upload báo cáo
       await apiClient.post(`/reports/profiles/${profile.id}`, formData);
 
       setSuccessMsg(`Đã nộp thành công file báo cáo "${selectedFile.name}"!`);
+
       setSelectedFile(null);
+
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
 
-      // Làm mới danh sách phiên bản báo cáo
+      // Làm mới lịch sử báo cáo sau khi upload
       const versionsRes = await apiClient.get<PaginatedResponse<ReportVersion>>(
         `/reports/profiles/${profile.id}/versions`,
-        { page: 1, limit: 20 }
+        { page: 1, limit: 20 },
       );
+
       setReportVersions(versionsRes.items || []);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Nộp báo cáo thất bại';
+
       setError(msg);
     } finally {
       setUploading(false);
     }
   };
 
+  // Tải file báo cáo
   const handleDownload = async (version: ReportVersion) => {
     try {
       setDownloadingId(version.id);
-      await apiClient.download(`/reports/${version.id}/content`, version.originalName);
+
+      await apiClient.download(`/reports/${version.id}/download`, version.originalName);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Tải file thất bại';
+
       alert(msg);
     } finally {
       setDownloadingId(null);
     }
   };
 
+  // Định dạng dung lượng file
   const formatFileSize = (bytes: number) => {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    if (bytes < 1024) {
+      return `${bytes} B`;
+    }
+
+    if (bytes < 1024 * 1024) {
+      return `${(bytes / 1024).toFixed(1)} KB`;
+    }
+
     return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
   };
 
-  const deadline = profile?.period?.reportDeadlineAt;
+  const periodData = profile?.period as unknown as PeriodWithDeadline | undefined;
+  const deadline = periodData?.reportDeadline || periodData?.reportDeadlineAt;
 
   return (
     <div className="flex min-h-screen bg-[#F9FAFB]">
       <AppSidebar />
+
       <div className="flex flex-1 flex-col overflow-hidden">
         <AppHeader title="Nộp báo cáo thực tập cuối kỳ" />
 
         <main className="flex-1 overflow-y-auto p-8 max-w-4xl mx-auto w-full">
+          {/* Tiêu đề */}
           <div className="mb-6">
             <Link
               href="/student/dashboard"
@@ -162,12 +197,16 @@ export default function SubmitReportPage() {
               <ArrowLeftIcon className="w-4 h-4" />
               Quay lại Bảng điều khiển
             </Link>
+
             <h1 className="text-3xl font-extrabold text-gray-900">Nộp báo cáo tổng kết thực tập</h1>
+
             <p className="mt-1 text-sm text-gray-500">
-              Tải lên tài liệu báo cáo thực tập hoàn chỉnh của bạn. Tài liệu sẽ được chuyển đến Giảng viên hướng dẫn để chấm điểm.
+              Tải lên tài liệu báo cáo thực tập hoàn chỉnh của bạn. Tài liệu sẽ được chuyển đến
+              Giảng viên hướng dẫn để chấm điểm.
             </p>
           </div>
 
+          {/* Thông báo lỗi */}
           {error && (
             <div className="mb-6 flex items-center gap-2 rounded-2xl bg-red-50 p-4 text-sm font-semibold text-red-700 border border-red-200">
               <ExclamationCircleIcon className="w-5 h-5 flex-shrink-0" />
@@ -175,6 +214,7 @@ export default function SubmitReportPage() {
             </div>
           )}
 
+          {/* Thông báo thành công */}
           {successMsg && (
             <div className="mb-6 flex items-center gap-2 rounded-2xl bg-emerald-50 p-4 text-sm font-semibold text-emerald-800 border border-emerald-200">
               <CheckCircleIcon className="w-5 h-5 flex-shrink-0" />
@@ -182,18 +222,25 @@ export default function SubmitReportPage() {
             </div>
           )}
 
+          {/* Loading */}
           {loading ? (
             <div className="rounded-3xl bg-white p-12 text-center border border-gray-100 shadow-xs">
               <div className="h-8 w-8 border-4 border-[#8093FF] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+
               <p className="text-sm font-medium text-gray-500">Đang tải thông tin báo cáo...</p>
             </div>
           ) : !profile ? (
+            /* Chưa có hồ sơ thực tập */
             <div className="rounded-3xl bg-white p-12 text-center border border-gray-100 shadow-xs">
               <ExclamationCircleIcon className="w-12 h-12 text-amber-500 mx-auto mb-3" />
+
               <h2 className="text-lg font-bold text-gray-900">Chưa có hồ sơ thực tập</h2>
+
               <p className="text-sm text-gray-500 mt-1 max-w-md mx-auto">
-                Bạn cần đăng ký hồ sơ thực tập và được Ban quản lý phê duyệt trước khi có thể nộp báo cáo tổng kết.
+                Bạn cần đăng ký hồ sơ thực tập và được Ban quản lý phê duyệt trước khi có thể nộp
+                báo cáo tổng kết.
               </p>
+
               <Link
                 href="/student/register-intern"
                 className="mt-5 inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#8093FF] text-white text-sm font-bold shadow-md hover:opacity-90 transition"
@@ -202,27 +249,34 @@ export default function SubmitReportPage() {
               </Link>
             </div>
           ) : (
+            /* Nội dung chính */
             <div className="overflow-hidden rounded-[2rem] border border-gray-100 bg-white shadow-xs">
               <div className="p-8 space-y-8">
-                {/* Thông tin deadline & Kỳ thực tập */}
+                {/* Thông tin deadline và kỳ thực tập */}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-2xl bg-blue-50 p-5 border border-blue-100">
                   <div className="flex items-center gap-3">
                     <ClockIcon className="h-8 w-8 text-[#8093FF] flex-shrink-0" />
+
                     <div>
                       <p className="text-sm font-bold text-gray-900">
                         {profile.period?.name || 'Đợt thực tập tốt nghiệp'}
                       </p>
+
                       <p className="text-xs text-gray-600 mt-0.5">
-                        Hạn chót nộp báo cáo: {deadline ? new Date(deadline).toLocaleString('vi-VN') : 'Không có hạn chót cụ thể'}
+                        Hạn chót nộp báo cáo:{' '}
+                        {deadline
+                          ? new Date(deadline).toLocaleString('vi-VN')
+                          : 'Không có hạn chót cụ thể'}
                       </p>
                     </div>
                   </div>
+
                   <span className="inline-flex self-start sm:self-auto rounded-full bg-blue-100 px-3.5 py-1 text-xs font-bold text-blue-800">
                     Trạng thái hồ sơ: {profile.status}
                   </span>
                 </div>
 
-                {/* Khu vực Upload File */}
+                {/* Khu vực upload file */}
                 <div>
                   <label className="mb-2 block text-sm font-bold text-gray-900">
                     Tệp báo cáo (Định dạng PDF hoặc DOCX) <span className="text-red-500">*</span>
@@ -242,24 +296,32 @@ export default function SubmitReportPage() {
                   >
                     <div className="space-y-3 text-center">
                       <CloudArrowUpIcon className="mx-auto h-12 w-12 text-[#8093FF]" />
+
                       {selectedFile ? (
                         <div>
                           <p className="text-base font-bold text-gray-900">{selectedFile.name}</p>
+
                           <p className="text-xs text-gray-500 mt-1">
-                            Dung lượng: {formatFileSize(selectedFile.size)} - Bấm để chọn file khác
+                            Dung lượng: {formatFileSize(selectedFile.size)}
+                            {' - '}Bấm để chọn file khác
                           </p>
                         </div>
                       ) : (
                         <div>
-                          <div className="text-sm font-bold text-gray-900">Bấm vào đây để chọn tệp báo cáo từ máy tính</div>
-                          <p className="text-xs text-gray-500 mt-1">Chấp nhận định dạng .pdf, .docx (Dung lượng tối đa: 10MB)</p>
+                          <div className="text-sm font-bold text-gray-900">
+                            Bấm vào đây để chọn tệp báo cáo từ máy tính
+                          </div>
+
+                          <p className="text-xs text-gray-500 mt-1">
+                            Chấp nhận định dạng .pdf, .docx (Dung lượng tối đa: 10MB)
+                          </p>
                         </div>
                       )}
                     </div>
                   </div>
                 </div>
 
-                {/* Lịch sử nộp các phiên bản (Report Versions) */}
+                {/* Lịch sử báo cáo */}
                 <div>
                   <h3 className="mb-4 text-sm font-bold text-gray-900 border-b border-gray-100 pb-2">
                     Lịch sử các phiên bản đã nộp ({reportVersions.length})
@@ -267,7 +329,8 @@ export default function SubmitReportPage() {
 
                   {reportVersions.length === 0 ? (
                     <div className="p-6 text-center rounded-2xl bg-gray-50 text-gray-500 text-sm">
-                      Bạn chưa nộp phiên bản báo cáo nào. Vui lòng chọn file và bấm &quot;Nộp báo cáo&quot; ở bên dưới.
+                      Bạn chưa nộp phiên bản báo cáo nào. Vui lòng chọn file và bấm &quot;Nộp báo
+                      cáo&quot; ở bên dưới.
                     </div>
                   ) : (
                     <div className="space-y-3">
@@ -278,10 +341,13 @@ export default function SubmitReportPage() {
                         >
                           <div className="flex items-center gap-3">
                             <DocumentTextIcon className="h-8 w-8 text-emerald-600 flex-shrink-0" />
+
                             <div>
                               <p className="text-sm font-bold text-gray-900">{v.originalName}</p>
+
                               <p className="text-xs text-gray-500">
-                                Phiên bản {v.version} • {formatFileSize(v.sizeBytes)} • Nộp lúc: {new Date(v.submittedAt).toLocaleString('vi-VN')}
+                                Phiên bản {v.version} • {formatFileSize(v.sizeBytes)} • Nộp lúc:{' '}
+                                {new Date(v.submittedAt).toLocaleString('vi-VN')}
                               </p>
                             </div>
                           </div>
@@ -293,10 +359,12 @@ export default function SubmitReportPage() {
                               </span>
                             ) : (
                               <span className="flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
-                                <CheckCircleIcon className="h-3.5 w-3.5" /> Đúng hạn
+                                <CheckCircleIcon className="h-3.5 w-3.5" />
+                                Đúng hạn
                               </span>
                             )}
 
+                            {/* Nút tải file */}
                             <button
                               type="button"
                               onClick={() => handleDownload(v)}
@@ -304,6 +372,7 @@ export default function SubmitReportPage() {
                               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-gray-200 bg-white text-xs font-bold text-gray-700 hover:bg-gray-100 transition disabled:opacity-50"
                             >
                               <ArrowDownTrayIcon className="w-3.5 h-3.5 text-gray-500" />
+
                               <span>{downloadingId === v.id ? 'Đang tải...' : 'Tải về'}</span>
                             </button>
                           </div>
